@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.security import APIKeyHeader
+from resources.pix_resource import PixResource
 
 # Isto avisa o Swagger que existe um cabeçalho global
 token_auth = APIKeyHeader(name="INTERNAL-TOKEN", auto_error=False)
@@ -30,14 +31,13 @@ def create_app() -> FastAPI:
     register_request_logger_middleware(application)
     register_request_context_middleware(application)
 
-    # Aqui vamos instanciar os nossos novos resources do Pix (em breve)
-    # pix_resource = PixResource()
+    # Instanciamos o nosso novo resource
+    pix_resource = PixResource()
 
-    # Tabela de rotas do Antifraude Pix
+ # Tabela de rotas do Antifraude Pix
     routes = [
-        # As nossas novas rotas entrarão aqui:
-        # ("/pix/transaction", pix_resource.on_post_pix, ["POST"]),
-        # ("/pix/transaction/{id}", pix_resource.on_get_pix, ["GET"]),
+        ("/pix/transaction", pix_resource.on_post_pix, ["POST"]),
+        ("/pix/transaction/{id}", pix_resource.on_get_pix, ["GET"]),
     ]
 
     for path, endpoint, methods in routes:
