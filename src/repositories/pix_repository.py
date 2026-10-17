@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from models.pix_model import PixTransactionModel, PixDecisionModel
 from sqlalchemy import text
@@ -37,6 +37,27 @@ class PixRepository:
         return session.query(PixTransactionModel).filter(
             PixTransactionModel.source_document == source_document,
             PixTransactionModel.created_at >= threshold
+        ).all()
+
+    def get_transactions_by_source_and_destination(
+        self,
+        session: Session,
+        source_document: str,
+        destination_account_number: str,
+        minutes: int,
+    ):
+        window_start = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        return session.query(PixTransactionModel).filter(
+            PixTransactionModel.source_document == source_document,
+            PixTransactionModel.payload["destination_account"]["account_number"].astext == destination_account_number,
+            PixTransactionModel.transaction_date >= window_start
+        ).all()
+
+    def get_destination_recent_activity(self, session: Session, destination_account_number: str, minutes: int):
+        window_start = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        return session.query(PixTransactionModel).filter(
+            PixTransactionModel.payload["destination_account"]["account_number"].astext == destination_account_number,
+            PixTransactionModel.transaction_date >= window_start
         ).all()
 
     def get_user_successful_history(self, session: Session, source_document: str, limit: int = 20):
