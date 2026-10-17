@@ -1,0 +1,8 @@
+{
+  "title": "PostCancelamento",
+  "type": "object",
+  "properties": {
+    "motivo": {"type": "string", "maxLength": 140}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,6 @@
+from resources.health_check import HealthCheckResource
+from resources.empresa_resource import EmpresaResource
+from resources.conta_resource import ContaResource
+from resources.transacao_resource import TransacaoResource
+from resources.responsabilidade_resource import ResponsabilidadeResource
+from resources.pagamento_programado_resource import PagamentoProgramadoResource

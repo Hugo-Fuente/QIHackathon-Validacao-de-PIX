@@ -1,0 +1,12 @@
+{
+  "title": "ContrapartePix",
+  "type": "object",
+  "properties": {
+    "chave": {"type": "string", "minLength": 1, "maxLength": 140},
+    "tipo_chave": {"type": "string", "enum": ["CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATORIA"]},
+    "nome": {"type": "string", "maxLength": 120},
+    "documento": {"type": "string", "maxLength": 20}
+  },
+  "required": ["chave"],
+  "additionalProperties": false
+}

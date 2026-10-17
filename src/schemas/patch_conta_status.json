@@ -1,0 +1,10 @@
+{
+  "title": "PatchContaStatus",
+  "type": "object",
+  "properties": {
+    "status": {"type": "string", "enum": ["ATIVA", "BLOQUEADA", "ENCERRADA"]},
+    "motivo": {"type": "string", "maxLength": 140}
+  },
+  "required": ["status"],
+  "additionalProperties": false
+}

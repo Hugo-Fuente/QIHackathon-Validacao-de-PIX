@@ -1,0 +1,13 @@
+{
+  "title": "PutRegraAprovacao",
+  "type": "object",
+  "properties": {
+    "acao": {"type": "string", "enum": ["PAGAMENTO", "RESERVA", "LIBERACAO_RESERVA"]},
+    "meio": {"type": ["string", "null"], "enum": ["PIX", "TED", "BOLETO", "INTERNO", null]},
+    "acima_de_centavos": {"type": "integer", "minimum": 0, "maximum": 1000000000000000},
+    "exige_todos": {"type": "boolean"},
+    "aprovacoes_necessarias": {"type": ["integer", "null"], "minimum": 1, "maximum": 1000}
+  },
+  "required": ["acao", "acima_de_centavos"],
+  "additionalProperties": false
+}

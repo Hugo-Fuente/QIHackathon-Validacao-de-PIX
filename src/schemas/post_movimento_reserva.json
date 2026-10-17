@@ -1,0 +1,13 @@
+{
+  "title": "PostMovimentoReserva",
+  "type": "object",
+  "properties": {
+    "tipo": {"type": "string", "enum": ["RESERVA", "LIBERACAO", "TRANSFERENCIA"]},
+    "responsabilidade_origem_id": {"type": ["string", "null"]},
+    "responsabilidade_destino_id": {"type": ["string", "null"]},
+    "valor_centavos": {"type": "integer", "minimum": 1, "maximum": 1000000000000000},
+    "motivo": {"type": "string", "maxLength": 140}
+  },
+  "required": ["tipo", "valor_centavos"],
+  "additionalProperties": false
+}

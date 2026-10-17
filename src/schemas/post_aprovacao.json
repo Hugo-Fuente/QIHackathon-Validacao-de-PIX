@@ -1,0 +1,9 @@
+{
+  "title": "PostAprovacao",
+  "type": "object",
+  "properties": {
+    "decisao": {"type": "string", "enum": ["APROVADA", "RECUSADA"]}
+  },
+  "required": ["decisao"],
+  "additionalProperties": false
+}

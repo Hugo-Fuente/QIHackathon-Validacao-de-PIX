@@ -1,0 +1,28 @@
+{
+  "title": "PostEmpresa",
+  "type": "object",
+  "properties": {
+    "cnpj": {"type": "string", "pattern": "^(\\d{14}|\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2})$"},
+    "razao_social": {"type": "string", "minLength": 1, "maxLength": 150},
+    "socios": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "properties": {
+          "cpf": {"type": "string", "pattern": "^(\\d{11}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})$"},
+          "nome": {"type": "string", "minLength": 1, "maxLength": 120},
+          "email": {"type": "string", "maxLength": 120, "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"},
+          "data_nascimento": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+          "papel": {"type": "string", "enum": ["SOCIO", "SOCIO_ADMINISTRADOR"]},
+          "participacao_bp": {"type": "integer", "minimum": 1, "maximum": 10000}
+        },
+        "required": ["cpf", "nome", "email", "data_nascimento", "papel", "participacao_bp"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["cnpj", "razao_social", "socios"],
+  "additionalProperties": false
+}

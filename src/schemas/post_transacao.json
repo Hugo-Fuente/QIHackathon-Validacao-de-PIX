@@ -1,0 +1,186 @@
+{
+  "title": "PostTransacao",
+  "type": "object",
+  "properties": {
+    "meio": {
+      "type": "string",
+      "enum": [
+        "PIX",
+        "TED",
+        "BOLETO",
+        "INTERNO"
+      ]
+    },
+    "valor_centavos": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000000000000
+    },
+    "conta_origem_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "conta_destino_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "contraparte": {
+      "type": "object"
+    },
+    "referencia_externa": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "responsabilidade_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "categoria": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "descricao": {
+      "type": "string",
+      "maxLength": 140
+    }
+  },
+  "required": [
+    "meio",
+    "valor_centavos"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "conta_origem_id"
+      ]
+    },
+    {
+      "required": [
+        "conta_destino_id"
+      ]
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "meio": {
+            "const": "PIX"
+          }
+        },
+        "required": [
+          "meio"
+        ]
+      },
+      "then": {
+        "required": [
+          "contraparte"
+        ],
+        "properties": {
+          "contraparte": {
+            "$ref": "contraparte_pix.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "meio": {
+            "const": "TED"
+          }
+        },
+        "required": [
+          "meio"
+        ]
+      },
+      "then": {
+        "required": [
+          "contraparte"
+        ],
+        "properties": {
+          "contraparte": {
+            "$ref": "contraparte_ted.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "meio": {
+            "const": "BOLETO"
+          }
+        },
+        "required": [
+          "meio"
+        ]
+      },
+      "then": {
+        "required": [
+          "contraparte"
+        ],
+        "properties": {
+          "contraparte": {
+            "$ref": "contraparte_boleto.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "meio": {
+            "const": "INTERNO"
+          }
+        },
+        "required": [
+          "meio"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "contraparte"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "meio": {
+            "const": "BOLETO"
+          }
+        },
+        "required": [
+          "meio"
+        ]
+      },
+      "then": {
+        "required": [
+          "referencia_externa"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "conta_destino_id"
+        ],
+        "not": {
+          "required": [
+            "conta_origem_id"
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "referencia_externa"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

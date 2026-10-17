@@ -1,0 +1,9 @@
+{
+  "title": "PutOrcamento",
+  "type": "object",
+  "properties": {
+    "valor_centavos": {"type": "integer", "minimum": 1, "maximum": 1000000000000000}
+  },
+  "required": ["valor_centavos"],
+  "additionalProperties": false
+}

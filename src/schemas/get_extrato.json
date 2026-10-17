@@ -1,0 +1,54 @@
+{
+  "title": "GetExtrato",
+  "type": "object",
+  "properties": {
+    "limite": {
+      "type": "string",
+      "pattern": "^\\d{1,4}$"
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "de": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 40
+    },
+    "ate": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 40
+    },
+    "categoria": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "natureza": {
+      "type": "string",
+      "enum": [
+        "ENTRADA",
+        "SAIDA",
+        "INTERNA"
+      ]
+    },
+    "meio": {
+      "type": "string",
+      "enum": [
+        "PIX",
+        "TED",
+        "BOLETO",
+        "INTERNO"
+      ]
+    },
+    "responsabilidade_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "autor_empresa_socio_id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    }
+  },
+  "additionalProperties": false
+}

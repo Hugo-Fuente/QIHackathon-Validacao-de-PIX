@@ -1,0 +1,10 @@
+{
+  "title": "PutPermissao",
+  "type": "object",
+  "properties": {
+    "escopo": {"type": "string", "enum": ["PROPRIAS", "TODAS"]},
+    "limite_transacao_centavos": {"type": ["integer", "null"], "maximum": 1000000000000000}
+  },
+  "required": ["escopo"],
+  "additionalProperties": false
+}

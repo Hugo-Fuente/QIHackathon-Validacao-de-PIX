@@ -1,0 +1,14 @@
+{
+  "title": "ContraparteTed",
+  "type": "object",
+  "properties": {
+    "banco": {"type": "string", "pattern": "^\\d{3}$"},
+    "agencia": {"type": "string", "pattern": "^\\d{1,5}$"},
+    "conta": {"type": "string", "pattern": "^\\d{1,12}(-[0-9Xx])?$"},
+    "tipo_conta": {"type": "string", "enum": ["CORRENTE", "POUPANCA", "PAGAMENTO"]},
+    "nome": {"type": "string", "maxLength": 120},
+    "documento": {"type": "string", "maxLength": 20}
+  },
+  "required": ["banco", "agencia", "conta", "nome", "documento"],
+  "additionalProperties": false
+}

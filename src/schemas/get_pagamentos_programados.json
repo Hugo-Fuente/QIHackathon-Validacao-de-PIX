@@ -1,0 +1,26 @@
+{
+  "title": "GetPagamentosProgramados",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "AGUARDANDO_APROVACAO",
+        "AGENDADO",
+        "EXECUTADO",
+        "RECUSADO",
+        "CANCELADO",
+        "FALHOU"
+      ]
+    },
+    "limite": {
+      "type": "string",
+      "pattern": "^\\d{1,4}$"
+    },
+    "cursor": {
+      "type": "string",
+      "maxLength": 500
+    }
+  },
+  "additionalProperties": false
+}
