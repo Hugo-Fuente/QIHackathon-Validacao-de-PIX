@@ -35,10 +35,10 @@ class PixController:
                 "metadata": decision.metadata_ or {}
             }
 
-        # 3. Execução das Regras Antifraude (Motor de Pontuação com faixas exclusivas)
+        # 3. Execução do Motor de Pontuação (Acumulando todas as regras ativas)
         rule_hits = []
 
-        # Faixa R1: Valor moderadamente alto (R$ 5.000,00 até R$ 10.000,00) -> 2 pontos
+        # R1: Valor moderadamente alto (R$ 5.000,00 até R$ 10.000,00) -> 2 pontos
         if 500000 <= amount < 1000000:
             rule_hits.append({
                 "code": "R1",
@@ -46,7 +46,7 @@ class PixController:
                 "detail": f"Valor elevado: R$ {amount/100:.2f}"
             })
 
-        # Faixa R2: Volume muito expressivo (Acima de R$ 10.000,00) -> 3 pontos
+        # R2: Volume expressivo (Acima de R$ 10.000,00) -> 3 pontos
         elif amount >= 1000000:
             rule_hits.append({
                 "code": "R2",
@@ -54,19 +54,37 @@ class PixController:
                 "detail": f"Volume expressivo crítico: R$ {amount/100:.2f}"
             })
 
-        # Regra de Velocity: 1 ou mais transações nos últimos 10 minutos -> 3 pontos
+        # R_VELOCITY / R_CRITICAL: Frequência e rajadas
         recent_count = self.repository.count_recent_transactions_by_source(session, source_doc, minutes=10)
-        if recent_count >= 1:
+        if recent_count >= 5:
+            rule_hits.append({
+                "code": "R_CRITICAL",
+                "points": 5,
+                "detail": f"Rajada crítica detectada: {recent_count} transações recentes."
+            })
+        elif recent_count >= 1:
             rule_hits.append({
                 "code": "R_VELOCITY",
                 "points": 3,
-                "detail": "Múltiplas transações recentes do mesmo remetente nos últimos 10 minutos"
+                "detail": "Múltiplas transações recentes do mesmo remetente."
             })
 
-        # 4. Cálculo do Score Total
+        # R5: Contraparte nova (Sem Pix anterior para esse destino, histórico >= 3 e amount >= R$ 1.000) -> 1 ponto
+        user_history = self.repository.get_user_successful_history(session, source_doc, limit=20)
+        history_count = len(user_history)
+        if history_count >= 3 and amount >= 100000:
+            has_history_with_dest = self.repository.has_previous_transaction_with_destination(session, source_doc, dest_doc)
+            if not has_history_with_dest:
+                rule_hits.append({
+                    "code": "R5",
+                    "points": 1,
+                    "detail": "Contraparte nova: primeira transferência para este destinatário com valor relevante."
+                })
+
+        # 4. Cálculo do Score Total (Soma acumulada de todas as regras disparadas)
         total_score = sum(hit["points"] for hit in rule_hits)
 
-        # 5. Mapeamento de Status baseado no Score total
+        # 5. Mapeamento de Status baseado no Score total acumulado
         # 0-1: approved | 2-4: two_factor_required | >=5: rejected
         if total_score >= 5:
             status = "rejected"

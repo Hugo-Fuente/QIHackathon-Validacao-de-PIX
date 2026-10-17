@@ -22,7 +22,8 @@ INSERT INTO fraud_rules (code, name, default_points) VALUES
 ('R12', 'Dispositivo Compartilhado', 2),
 ('R13', 'Horário Fora do Padrão (Time-fence)', 3),
 ('R14', 'Cerca Virtual (Geofence)', 5),
-('R_VELOCITY', 'Velocity por remetente', 3);
+('R_VELOCITY', 'Velocity por remetente', 3),
+('R_CRITICAL', 'Bloqueio por rajada crítica', 5);
 
 -- 2. Políticas Customizadas por Cliente (Ex: Padaria)
 CREATE TABLE client_fraud_policies (

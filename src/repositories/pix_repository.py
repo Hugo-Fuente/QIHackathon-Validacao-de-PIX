@@ -25,6 +25,36 @@ class PixRepository:
             PixTransactionModel.created_at >= threshold
         ).count()
 
+    def get_recent_transactions_window(self, session: Session, source_document: str, seconds: int):
+        threshold = datetime.utcnow() - timedelta(seconds=seconds)
+        return session.query(PixTransactionModel).filter(
+            PixTransactionModel.source_document == source_document,
+            PixTransactionModel.created_at >= threshold
+        ).all()
+
+    def get_transactions_in_minutes(self, session: Session, source_document: str, minutes: int):
+        threshold = datetime.utcnow() - timedelta(minutes=minutes)
+        return session.query(PixTransactionModel).filter(
+            PixTransactionModel.source_document == source_document,
+            PixTransactionModel.created_at >= threshold
+        ).all()
+
+    def get_user_successful_history(self, session: Session, source_document: str, limit: int = 20):
+        return session.query(PixTransactionModel).join(
+            PixDecisionModel,
+            PixTransactionModel.id == PixDecisionModel.transaction_id
+        ).filter(
+            PixTransactionModel.source_document == source_document,
+            PixDecisionModel.status != "rejected"
+        ).order_by(PixTransactionModel.transaction_date.desc()).limit(limit).all()
+
+    def has_previous_transaction_with_destination(self, session: Session, source_document: str, dest_document: str) -> bool:
+        count = session.query(PixTransactionModel).filter(
+            PixTransactionModel.source_document == source_document,
+            PixTransactionModel.destination_document == dest_document
+        ).count()
+        return count > 0
+
     def acquire_advisory_locks(self, session: Session, pix_id: str, source_doc: str, dest_doc: str):
         """
         Adquire locks consultivos no PostgreSQL na mesma ordem para evitar deadlocks,
