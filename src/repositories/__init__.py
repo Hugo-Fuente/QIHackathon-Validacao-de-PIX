@@ -1,6 +1,1 @@
-from repositories.empresa_repository import EmpresaRepository
-from repositories.conta_repository import ContaRepository
-from repositories.transacao_repository import TransacaoRepository
-from repositories.responsabilidade_repository import ResponsabilidadeRepository
-from repositories.pagamento_programado_repository import PagamentoProgramadoRepository
-from repositories.governanca_repository import GovernancaRepository
+from .pix_repository import PixRepository

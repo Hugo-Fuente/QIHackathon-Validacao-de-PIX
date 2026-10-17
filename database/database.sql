@@ -48,7 +48,7 @@ CREATE TABLE pix_transactions (
 
 -- 4. Histórico da Decisão do Motor
 CREATE TABLE pix_decisions (
-    key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key UUID PRIMARY KEY,
     transaction_id VARCHAR(50) REFERENCES pix_transactions(id) UNIQUE NOT NULL,
     status VARCHAR(30) NOT NULL, -- 'approved', 'rejected', 'two_factor_required'
     risk_score SMALLINT NOT NULL, -- A soma total dos pontos

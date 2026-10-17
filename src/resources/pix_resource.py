@@ -1,28 +1,18 @@
-from fastapi import status
+from controllers.pix_controller import PixController
 from schemas.pix_schema import PixTransactionInput, PixTransactionOutput
 
 class PixResource:
-    
+    def __init__(self):
+        self.controller = PixController()
+
     async def on_post_pix(self, payload: PixTransactionInput) -> PixTransactionOutput:
-        """
-        Recebe a transação Pix, aciona o motor antifraude e devolve a decisão.
-        """
-        # Futuramente: Aqui vamos chamar o Controller para aplicar as regras e salvar no banco!
-        
-        return PixTransactionOutput(
-            key="b3f1c2e0-7d4a-4c1e-9a52-1f0e6c9d2a77",
-            status="approved",
-            metadata={"mensagem": "A rota está viva! Motor antifraude em construção."}
-        )
+        """Recebe a transação Pix, processa o motor antifraude e grava no banco."""
+        # Transforma o payload do Pydantic em dicionário para o controller processar
+        data_dict = payload.model_dump(mode="json")
+        result = self.controller.process_transaction(data_dict)
+        return PixTransactionOutput(**result)
 
     async def on_get_pix(self, id: str) -> PixTransactionOutput:
-        """
-        Consulta o resultado de uma análise antifraude anterior através do ID do Pix.
-        """
-        # Futuramente: Buscar no banco de dados usando o Repositório
-        
-        return PixTransactionOutput(
-            key="dummy-key-1234-5678",
-            status="approved",
-            metadata={"pix_id_buscado": id, "aviso": "Dados de teste"}
-        )
+        """Consulta a análise antifraude gravada através do ID do Pix."""
+        result = self.controller.get_transaction_analysis(id)
+        return PixTransactionOutput(**result)
