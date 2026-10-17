@@ -1,0 +1,53 @@
+# Sobe API e banco: `docker compose up`.
+# Testes (com a API de pé): `pip install -r requirements-dev.txt && pytest`.
+#
+# Todas as variáveis têm valor padrão (${VARIAVEL:-padrao}); um .env opcional
+# (copiado de .env.example) sobrescreve os padrões.
+
+services:
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      # Defina API_PORT no .env se a porta 3000 estiver ocupada.
+      - "${API_PORT:-3000}:3000"
+    environment:
+      # Dentro do compose o banco responde pelo nome do serviço ("db").
+      DATABASE_URL: postgresql+psycopg2://bootcamp:bootcamp@db:5432/epp_conta_compartilhada
+      APP_ENV: ${APP_ENV:-local}
+      SERVICE_NAME: ${SERVICE_NAME:-bootcamp-api}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-default_token}
+      # O compose só repassa ao container as variáveis listadas aqui.
+      BANKSLIP_API_URL: ${BANKSLIP_API_URL:-http://localhost:8080}
+      BANKSLIP_API_INTERNAL_TOKEN: ${BANKSLIP_API_INTERNAL_TOKEN:-default_token}
+      BANKSLIP_API_TIMEOUT: ${BANKSLIP_API_TIMEOUT:-5}
+    volumes:
+      # Código montado no container; com --reload a API reinicia ao salvar.
+      - ./src:/app
+    command: uvicorn app:app --host 0.0.0.0 --port 3000 --no-server-header --reload
+    healthcheck:
+      # Aguarde (healthy) antes de rodar os testes.
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:3000/health_check\")'"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    build: ./database/.
+    environment:
+      POSTGRES_USER: bootcamp
+      POSTGRES_PASSWORD: bootcamp
+      POSTGRES_DB: epp_conta_compartilhada
+    ports:
+      # Defina DB_PORT no .env se a porta 5432 estiver ocupada.
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bootcamp -d epp_conta_compartilhada"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
