@@ -315,6 +315,25 @@ class PixController:
                 except (AttributeError, TypeError, ValueError, OverflowError) as e:
                     logger.warning("Não foi possível avaliar as datas/coordenadas da regra R11: %s", e)
 
+        # R12: Horário de risco (Madrugada: 20:00 às 06:00 BRT) com valor >= R$ 1.000 -> 2 pontos
+        try:
+            tx_date_utc = datetime.fromisoformat(input_data["transaction_date"].replace("Z", "+00:00"))
+            
+            # Subtrai 3 horas para encontrar o horário de Brasília (UTC-3) de forma simples
+            # Se a tua API usar pytz ou zoneinfo, podes fazer a conversão de timezone direto, 
+            # mas com timedelta garantimos que não há erros de dependência.
+            local_time_brt = tx_date_utc + timedelta(hours=-3)
+            
+            # Verifica se a hora local é >= 20 (20h, 21h, 22h, 23h) ou < 6 (00h, 01h, 02h, 03h, 04h, 05h)
+            if (local_time_brt.hour >= 20 or local_time_brt.hour < 6) and amount >= 100000:
+                rule_hits.append({
+                    "code": "R12",
+                    "points": 2,
+                    "detail": f"Transação em horário de risco ({local_time_brt.strftime('%H:%M')} BRT) com valor de R$ {amount/100:.2f}."
+                })
+        except (AttributeError, TypeError, ValueError, OverflowError) as e:
+            logger.warning("Não foi possível avaliar o horário na regra R12: %s", e)
+        
         # O RFC agrupa R1, R3, R4 e R28 na Família de Valor, com teto de 3 pontos.
         # Atualmente só R1, R3 e R4 estão ativas; o teto evita pontuação excessiva
         # quando várias regras de montante disparam na mesma transação.
