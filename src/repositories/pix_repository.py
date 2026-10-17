@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from models.pix_model import PixTransactionModel, PixDecisionModel
 from sqlalchemy import text
@@ -16,6 +17,13 @@ class PixRepository:
 
     def get_decision_by_transaction_id(self, session: Session, transaction_id: str):
         return session.query(PixDecisionModel).filter(PixDecisionModel.transaction_id == transaction_id).first()
+
+    def count_recent_transactions_by_source(self, session: Session, source_document: str, minutes: int = 10) -> int:
+        threshold = datetime.utcnow() - timedelta(minutes=minutes)
+        return session.query(PixTransactionModel).filter(
+            PixTransactionModel.source_document == source_document,
+            PixTransactionModel.created_at >= threshold
+        ).count()
 
     def acquire_advisory_locks(self, session: Session, pix_id: str, source_doc: str, dest_doc: str):
         """

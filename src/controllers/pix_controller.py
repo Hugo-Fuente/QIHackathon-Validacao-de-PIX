@@ -23,7 +23,6 @@ class PixController:
         payload_hash = self.repository.compute_payload_hash(input_data)
 
         if existing_tx:
-            # Se já existe, checa o hash para validar se é o mesmo payload ou conflito (409)
             existing_hash = self.repository.compute_payload_hash(dict(existing_tx.payload or {})) # type: ignore
             if existing_hash != payload_hash:
                 from fastapi import HTTPException
@@ -36,29 +35,38 @@ class PixController:
                 "metadata": decision.metadata_ or {}
             }
 
-        # 3. Execução das Regras Antifraude (Motor de Pontuação)
+        # 3. Execução das Regras Antifraude (Motor de Pontuação com faixas exclusivas)
         rule_hits = []
-        total_score = 0
 
-        # R1: Limite Absoluto (R$ 5.000,00 = 500000 centavos)
-        if amount >= 500000:
-            rule_hits.append({"code": "R1", "points": 2, "detail": f"Valor alto: R$ {amount/100:.2f}"})
+        # Faixa R1: Valor moderadamente alto (R$ 5.000,00 até R$ 10.000,00) -> 2 pontos
+        if 500000 <= amount < 1000000:
+            rule_hits.append({
+                "code": "R1",
+                "points": 2,
+                "detail": f"Valor elevado: R$ {amount/100:.2f}"
+            })
 
-        # R4: Velocity simulada / Exemplo prático para o Hackathon
-        # (No futuro, podemos consultar o histórico real do pagador na base)
-        if amount > 1000000: # Acima de 10 mil centavos ganha mais um alerta base
-            rule_hits.append({"code": "R2", "points": 2, "detail": "Volume expressivo detectado na transação"})
+        # Faixa R2: Volume muito expressivo (Acima de R$ 10.000,00) -> 3 pontos
+        elif amount >= 1000000:
+            rule_hits.append({
+                "code": "R2",
+                "points": 3,
+                "detail": f"Volume expressivo crítico: R$ {amount/100:.2f}"
+            })
 
-        # Regra de Teto para a Família de Valor (conforme RFC: teto de 3 pontos para valor)
-        value_family_points = sum(hit["points"] for hit in rule_hits if hit["code"] in ["R1", "R2", "R4"])
-        if value_family_points > 3:
-            # Aplicação do teto de 3 pontos
-            diff = value_family_points - 3
-            total_score = sum(hit["points"] for hit in rule_hits) - diff
-        else:
-            total_score = sum(hit["points"] for hit in rule_hits)
+        # Regra de Velocity: 1 ou mais transações nos últimos 10 minutos -> 3 pontos
+        recent_count = self.repository.count_recent_transactions_by_source(session, source_doc, minutes=10)
+        if recent_count >= 1:
+            rule_hits.append({
+                "code": "R_VELOCITY",
+                "points": 3,
+                "detail": "Múltiplas transações recentes do mesmo remetente nos últimos 10 minutos"
+            })
 
-        # 4. Mapeamento de Status baseado no Score total
+        # 4. Cálculo do Score Total
+        total_score = sum(hit["points"] for hit in rule_hits)
+
+        # 5. Mapeamento de Status baseado no Score total
         # 0-1: approved | 2-4: two_factor_required | >=5: rejected
         if total_score >= 5:
             status = "rejected"
@@ -73,7 +81,7 @@ class PixController:
             "rules_version": "v1.0-hackathon"
         }
 
-        # 5. Persistência atômica no banco de dados
+        # 6. Persistência atômica no banco de dados
         decision = self.repository.save_analysis(
             session=session,
             transaction_data=input_data,
