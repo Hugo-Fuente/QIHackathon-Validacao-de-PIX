@@ -918,10 +918,76 @@ class PixController:
         # R27: Evasão de fim de semana para destinatário inédito -> 3 pontos
             # DESISTO
 
+        # R30: Saída da empresa fora do padrão (v5) -> 2 pontos
+            if context_data.get("event") == "request":
+                # Verifica isenção: ignora pagamento coberto por reserva e execução agendada
+                is_scheduled_execution = context_data.get("event") == "execution" and context_data.get("origin") == "scheduled"
+                is_reserved = bool(context_data.get("responsibility_id"))
+                
+                if not is_scheduled_execution and not is_reserved:
+                    company_opening_str = input_data.get("source_account", {}).get("opening_date")
+                    if company_opening_str:
+                        try:
+                            company_opening = _as_utc_datetime(company_opening_str)
+                            curr_time = _as_utc_datetime(input_data["transaction_date"])
+                            company_age_days = (curr_time - company_opening).days
+                            
+                            # A empresa tem de ter pelo menos 30 dias de ativação
+                            if company_age_days >= 30:
+                                # Busca histórico de 31 dias (44.640 minutos)
+                                recent_31d = self.repository.get_transactions_in_minutes(session, source_doc, minutes=44640)
+                                
+                                outflows_24h = amount
+                                outflows_prior_30d = 0
+                                count_prior_30d = 0
+                                
+                                for tx in recent_31d:
+                                    # Evita contar o próprio evento atual, caso já tenha passado no lock
+                                    if str(tx.id) == str(pix_id):
+                                        continue
+                                        
+                                    tx_time = _as_utc_datetime(tx.transaction_date)
+                                    diff_hours = (curr_time - tx_time).total_seconds() / 3600.0
+                                    
+                                    tx_payload = getattr(tx, 'payload', {})
+                                    if isinstance(tx_payload, str):
+                                        try: tx_payload = json.loads(tx_payload)
+                                        except: tx_payload = {}
+                                        
+                                    if isinstance(tx_payload, dict):
+                                        ctx = tx_payload.get("context", {})
+                                        tx_is_scheduled_exec = ctx.get("event") == "execution" and ctx.get("origin") == "scheduled"
+                                        tx_is_reserved = bool(ctx.get("responsibility_id"))
+                                        
+                                        # Só contabiliza saídas livres
+                                        if not tx_is_scheduled_exec and not tx_is_reserved:
+                                            tx_amt = int(getattr(tx, "amount", 0))
+                                            
+                                            # Saídas nas últimas 24 horas
+                                            if 0 <= diff_hours <= 24:
+                                                outflows_24h += tx_amt
+                                            # Saídas nos 30 dias anteriores à janela de 24h
+                                            elif 24 < diff_hours <= (31 * 24):
+                                                outflows_prior_30d += tx_amt
+                                                count_prior_30d += 1
+                                                
+                                # Exige pelo menos 10 saídas no período base para ter média confiável
+                                if count_prior_30d >= 10:
+                                    daily_avg_30d = outflows_prior_30d / 30.0
+                                    
+                                    if outflows_24h >= 1000000 and outflows_24h >= 3 * daily_avg_30d:
+                                        rule_hits.append({
+                                            "code": "R30",
+                                            "points": 2,
+                                            "detail": f"Saída fora do padrão: R$ {outflows_24h/100:.2f} em 24h supera 3x a média diária (R$ {daily_avg_30d/100:.2f}) do histórico."
+                                        })
+                        except Exception as e:
+                            logger.warning("Falha na avaliação da R30: %s", e)
+
         # Agrupamento e tetos por família
         value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28"]]
         frac_rules = [h for h in rule_hits if h["code"] in ["R8", "R29"]]
-        internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]
+        internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]        
         session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]]
         account_behavior_rules = [h for h in rule_hits if h["code"] in ["R20", "R21"]]
         maturity_rules = [h for h in rule_hits if h["code"] in ["R22", "R23", "R24"]]
