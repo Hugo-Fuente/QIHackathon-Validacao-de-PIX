@@ -2,7 +2,9 @@
 
 **Integrantes:** Hugo Gomes · Leandro Apolinário Leite · Mateus Carósio  
 **Data:** 17/10/2026  
-**Versão das regras:** 6
+**Versão das regras:** 7
+
+> A especificação vigente é a [RFC v7](rfc_antifraude_pix.md). As tabelas detalhadas abaixo registram a revisão v6; para o limite relativo ao perfil, início frio e contrato de `context`, siga a RFC.
 
 ## Como o motor de decisão funciona
 
@@ -332,7 +334,10 @@ Testes:
 
 ```bash
 docker compose run --rm api pytest
+python run_api_tests.py /caminho/para/pix_api_tests.json --base-url http://localhost:3000
 ```
+
+O runner da API aceita os placeholders e expande os passos `repeat` do JSON; execute-o com a API e o banco ativos.
 
 Cada regra é uma função pura (evento e histórico entram, pontos e motivo saem), então os testes unitários das regras e da combinação (tetos e faixas) rodam sem banco. Os testes de integração usam o PostgreSQL e conferem idempotência (`200` e `409`), `404` no GET e a rajada paralela do mesmo pagador.
 

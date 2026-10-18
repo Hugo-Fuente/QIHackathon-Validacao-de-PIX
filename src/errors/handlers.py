@@ -57,6 +57,12 @@ def register_error_handlers(application: FastAPI) -> None:
         if exception.status_code == 405:
             return qi_exception_to_response(MethodNotAllowed())
 
+        if 400 <= exception.status_code < 500:
+            return JSONResponse(
+                status_code=exception.status_code,
+                content={"detail": exception.detail},
+            )
+
         logger.error(f"HTTP {exception.status_code} em {request.url.path}: {exception.detail}")
         return qi_exception_to_response(InternalError())
 
@@ -77,7 +83,17 @@ def register_error_handlers(application: FastAPI) -> None:
         if origin in ("query", "path"):
             return qi_exception_to_response(InvalidParameter(description))
 
-        return qi_exception_to_response(InvalidSchema(description))
+        if first_error.get("type") == "json_invalid":
+            return qi_exception_to_response(InvalidSchema(description))
+        return JSONResponse(
+            status_code=422,
+            content={
+                "title": "Unprocessable Entity",
+                "description": description,
+                "translation": "Payload inválido",
+                "code": "QIT000422",
+            },
+        )
 
     @application.exception_handler(Exception)
     def handle_unexpected_error(request: Request, exception: Exception) -> JSONResponse:

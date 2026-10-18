@@ -15,6 +15,20 @@ class PixRepository:
     def get_transaction_by_id(self, session: Session, transaction_id: str):
         return session.query(PixTransactionModel).filter(PixTransactionModel.id == transaction_id).first()
 
+    def get_transactions_before(self, session: Session, event_date: datetime):
+        return session.query(PixTransactionModel).filter(
+            PixTransactionModel.transaction_date <= event_date
+        ).order_by(PixTransactionModel.transaction_date.asc()).all()
+
+    def get_non_rejected_transactions_before(self, session: Session, event_date: datetime):
+        return session.query(PixTransactionModel).join(
+            PixDecisionModel,
+            PixTransactionModel.id == PixDecisionModel.transaction_id,
+        ).filter(
+            PixTransactionModel.transaction_date <= event_date,
+            PixDecisionModel.status != "rejected",
+        ).order_by(PixTransactionModel.transaction_date.asc()).all()
+
     def get_decision_by_transaction_id(self, session: Session, transaction_id: str):
         return session.query(PixDecisionModel).filter(PixDecisionModel.transaction_id == transaction_id).first()
 
@@ -94,6 +108,14 @@ class PixRepository:
 
     def save_analysis(self, session: Session, transaction_data: dict, payload_hash: str, status: str, risk_score: int, metadata: dict, rule_hits: list):
         """Salva a transação, a decisão e as regras acionadas numa única transação de banco."""
+
+        session.execute(text("""
+            INSERT INTO fraud_rules (code, name, default_points)
+            VALUES
+                ('R33', 'Degrau de início frio', 1),
+                ('C1', 'Integridade do pedido, voto e execução', 0)
+            ON CONFLICT (code) DO NOTHING
+        """))
         
         # 1. Salva a transação Pix
         tx_model = PixTransactionModel(
