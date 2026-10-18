@@ -716,21 +716,126 @@ class PixController:
                         "detail": f"Esvaziamento de conta: saídas em 24h (R$ {total_outflow_24h/100:.2f}) atingiram pelo menos 70% do saldo livre."
                     })
 
-        # Agrupamento e Tetos por Família (Conforme RFC)
+        # R21: Libertação de reserva seguida de saída (<= 30 min, >= 80% libertado, contraparte nova) -> 3 pontos
+            if context_data.get("event") == "request":
+                reserved_released = context_data.get("reserved_amount_released")
+                released_at_str = context_data.get("reserved_released_at")
+                
+                if reserved_released and released_at_str:
+                    # Verifica se o valor a transferir é pelo menos 80% do valor que foi libertado
+                    if amount >= (reserved_released * 0.80):
+                        try:
+                            released_time = _as_utc_datetime(released_at_str)
+                            curr_time = _as_utc_datetime(input_data["transaction_date"])
+                            
+                            diff_mins = (curr_time - released_time).total_seconds() / 60.0
+                            
+                            if 0 <= diff_mins <= 30:
+                                # Vamos procurar no histórico se este destinatário (dest_doc) já recebeu dinheiro da empresa
+                                dest_doc = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
+                                has_history = False
+                                
+                                for tx in user_history:
+                                    tx_payload = getattr(tx, 'payload', {})
+                                    if isinstance(tx_payload, str):
+                                        import json
+                                        try: tx_payload = json.loads(tx_payload)
+                                        except: tx_payload = {}
+                                        
+                                    if isinstance(tx_payload, dict):
+                                        past_dest_doc = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                                        if past_dest_doc == dest_doc:
+                                            has_history = True
+                                            break
+                                            
+                                if not has_history:
+                                    rule_hits.append({
+                                        "code": "R21",
+                                        "points": 3,
+                                        "detail": f"Evasão de reserva: Saída para novo destinatário apenas {diff_mins:.1f} min após libertação de R$ {reserved_released/100:.2f}."
+                                    })
+                        except Exception as e:
+                            logger.warning("Falha na avaliação da R21: %s", e)
+
+        # R22: Empresa recém-aberta (<= 30 dias) a realizar pedido de alto valor (>= R$ 5.000) -> 2 pontos
+            if context_data.get("event") == "request" and amount >= 500000:
+                opening_date_str = input_data.get("source_account", {}).get("opening_date")
+                
+                if opening_date_str:
+                    try:
+                        opening_date = _as_utc_datetime(opening_date_str)
+                        curr_time = _as_utc_datetime(input_data["transaction_date"])
+                        
+                        # Calcula a diferença em dias
+                        diff_days = (curr_time - opening_date).days
+                        
+                        # Dispara se a empresa tem 30 dias ou menos de vida
+                        if 0 <= diff_days <= 30:
+                            rule_hits.append({
+                                "code": "R22",
+                                "points": 2,
+                                "detail": f"Maturidade suspeita: A empresa tem apenas {diff_days} dias de abertura e tenta transferir R$ {amount/100:.2f}."
+                            })
+                    except Exception as e:
+                        logger.warning("Falha na avaliação da R22: %s", e)
+
+# ==========================================================
+        # AGRUPAMENTO E TETOS POR FAMÍLIA (Conforme o RFC do EPP)
+        # ==========================================================
+        
         value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28"]]
         frac_rules = [h for h in rule_hits if h["code"] in ["R8", "R29"]]
         internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]
-        account_behavior_rules = [h for h in rule_hits if h["code"] in ["R20"]]
-        session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]]
-        other_rules = [h for h in rule_hits if h["code"] not in ["R1", "R3", "R4", "R28", "R8", "R29", "R13", "R14", "R16", "R17", "R18", "R19", "R20", "R32"]]
+        session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]] 
+        account_behavior_rules = [h for h in rule_hits if h["code"] in ["R20", "R21"]]
+        maturity_rules = [h for h in rule_hits if h["code"] in ["R22", "R23"]]        
+        
+        # Filtra as outras regras (É crucial garantir que os códigos acima NÃO estão aqui)
+        other_rules = [h for h in rule_hits if h["code"] not in [
+            "R1", "R3", "R4", "R28", 
+            "R8", "R29", 
+            "R13", "R14", "R16", 
+            "R17", "R18", "R19", "R32", 
+            "R20", "R21", 
+            "R22", "R23"   # <-- R23 aqui!
+        ]]
 
+        # Aplicação dos limites (min) de cada família
         value_points = min(3, sum(h["points"] for h in value_rules))
         frac_points = min(2, sum(h["points"] for h in frac_rules))
         internal_points = min(3, sum(h["points"] for h in internal_controls_rules))
-        account_behavior_points = min(3, sum(h["points"] for h in account_behavior_rules))
         session_points = min(4, sum(h["points"] for h in session_rules))
+        account_behavior_points = min(3, sum(h["points"] for h in account_behavior_rules))
+        maturity_points = min(3, sum(h["points"] for h in maturity_rules))
         other_points = sum(h["points"] for h in other_rules)
-        total_score = value_points + frac_points + internal_points + account_behavior_points + session_points + other_points
+
+        # Soma final do Risco
+        total_score = value_points + frac_points + internal_points + session_points + account_behavior_points + maturity_points + other_points
+        
+        # O código a partir daqui deve ser aquele onde gravas os hits na base de dados (se for o caso)
+        # e onde devolves a resposta final ao utilizador (rejected / approved / etc).
+
+        # R23: Destinatário recém-aberto (<= 30 dias) a receber pedido de alto valor (>= R$ 5.000) -> 2 pontos
+        if context_data.get("event") == "request" and amount >= 500000:
+            dest_opening_str = input_data.get("destination_account", {}).get("opening_date")
+            
+            if dest_opening_str:
+                try:
+                    dest_opening = _as_utc_datetime(dest_opening_str)
+                    curr_time = _as_utc_datetime(input_data["transaction_date"])
+                    
+                    # Calcula a diferença em dias
+                    diff_days_dest = (curr_time - dest_opening).days
+                    
+                    # Dispara se a conta de destino tem 30 dias ou menos de vida
+                    if 0 <= diff_days_dest <= 30:
+                        rule_hits.append({
+                            "code": "R23",
+                            "points": 2,
+                            "detail": f"Destinatário recente: A conta de destino tem apenas {diff_days_dest} dias de abertura."
+                        })
+                except Exception as e:
+                    logger.warning("Falha na avaliação da R23: %s", e)
 
         # 5. Mapeamento de Status baseado no Score total acumulado
         # 0-1: approved | 2-4: two_factor_required | >=5: rejected[cite: 20]

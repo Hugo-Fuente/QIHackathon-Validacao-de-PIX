@@ -28,8 +28,18 @@ INSERT INTO fraud_rules (code, name, default_points) VALUES
 ('R18', 'Deslocamento do sócio', 3),
 ('R19', 'Horário atípico do sócio', 1),
 ('R20', 'Esvaziamento de saldo livre', 2),
+('R21', 'Libertação de reserva seguida de saída', 3),
+('R22', 'Regra R22 (a definir)', 1),
+('R23', 'Regra R23 (a definir)', 1),
+('R24', 'Regra R24 (a definir)', 1),
+('R25', 'Regra R25 (a definir)', 1),
+('R26', 'Regra R26 (a definir)', 1),
+('R27', 'Regra R27 (a definir)', 1),
 ('R28', 'Valor colado no piso', 2),
 ('R29', 'Fracionamento por documento', 2),
+('R30', 'Regra R30 (a definir)', 1),
+('R31', 'Regra R31 (a definir)', 1),
+('R32', 'Regra R32 (a definir)', 1),
 ('R_VELOCITY', 'Velocity por remetente', 3),
 ('R_CRITICAL', 'Bloqueio por rajada crítica', 5);
 
