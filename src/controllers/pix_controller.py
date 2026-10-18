@@ -9,6 +9,15 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
+def _as_utc_datetime(value):
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def calculate_distance_km(lat1, lon1, lat2, lon2):
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
@@ -402,6 +411,11 @@ class PixController:
             author_id = context_data.get("author_id")
             author_limit = context_data.get("author_limit")
             approval_trigger = context_data.get("approval_trigger")
+            recent_24h_company = self.repository.get_transactions_in_minutes(
+                session,
+                source_doc,
+                minutes=1440
+            )
             limits = [
                 limit
                 for limit in (author_limit, approval_trigger)
@@ -414,11 +428,6 @@ class PixController:
                 upper_bound = int(min_limit * 0.999)
 
                 if lower_bound <= amount <= upper_bound:
-                    recent_24h_company = self.repository.get_transactions_in_minutes(
-                        session,
-                        source_doc,
-                        minutes=1440
-                    )
                     hugging_author_txs = []
                     for tx in recent_24h_company:
                         tx_payload = getattr(tx, "payload", {}) or {}
@@ -469,17 +478,216 @@ class PixController:
                                 "detail": f"Teste de limite EPP: {len(hugging_author_txs) + 1} pedidos colados no teto de R$ {min_limit/100:.2f}."
                             })
 
+        # R14: Recriação após recusa (Mesmo destino, mesmo autor, valor 80-120% de um pedido anterior nas últimas 24h) -> 2 pontos
+            if context_data.get("event") == "request":
+                for tx in recent_24h_company:
+                    # Ignora a transação atual
+                    if str(tx.id) == str(pix_id):
+                        continue
+                        
+                    tx_payload = getattr(tx, 'payload', {})
+                    if isinstance(tx_payload, str):
+                        import json
+                        try: tx_payload = json.loads(tx_payload)
+                        except: tx_payload = {}
+                        
+                    if isinstance(tx_payload, dict):
+                        tx_context = tx_payload.get("context", {})
+                        
+                        # Procura outro "request" do mesmo autor nas últimas 24h
+                        if tx_context.get("event") == "request" and tx_context.get("author_id") == author_id:
+                            tx_dest_doc = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                            
+                            # Se for para o mesmo destinatário, verificamos se o valor está na margem de manobra (80% a 120%)
+                            if tx_dest_doc == dest_doc:
+                                prev_amount = int(getattr(tx, 'amount', 0))
+                                
+                                if prev_amount > 0 and (prev_amount * 0.8) <= amount <= (prev_amount * 1.2):
+                                    rule_hits.append({
+                                        "code": "R14",
+                                        "points": 2,
+                                        "detail": f"Recriação de pedido: R$ {amount/100:.2f} está na margem de um pedido anterior de R$ {prev_amount/100:.2f} para o mesmo destino."
+                                    })
+                                    break  # Dispara a regra e sai do loop para não pontuar a dobrar
+        
+        # R15: Aprovação disfarçada (Voto com o mesmo device do autor, ou mesmo IP em < 10s) -> 3 pontos
+            if context_data.get("event") == "vote":
+                request_id = context_data.get("request_id")
+                if request_id:
+                    # Vai buscar o pedido original à base de dados
+                    original_req = self.repository.get_transaction_by_id(session, request_id)
+                    
+                    if original_req:
+                        req_payload = getattr(original_req, 'payload', {})
+                        if isinstance(req_payload, str):
+                            import json
+                            try: req_payload = json.loads(req_payload)
+                            except: req_payload = {}
+                            
+                        if isinstance(req_payload, dict):
+                            orig_source = req_payload.get("source", {})
+                            orig_device = orig_source.get("device_id")
+                            orig_ip = orig_source.get("ip")
+                            
+                            curr_source = input_data.get("source", {})
+                            curr_device = curr_source.get("device_id")
+                            curr_ip = curr_source.get("ip")
+                            
+                            r15_triggered = False
+                            detail_msg = ""
+                            
+                            # Condição A: Mesmo dispositivo (Muito forte, não importa o tempo)
+                            if curr_device and orig_device and curr_device == orig_device:
+                                r15_triggered = True
+                                detail_msg = f"Aprovação disfarçada: Voto efetuado com o mesmo dispositivo ({curr_device}) que criou o pedido."
+                            
+                            # Condição B: Mesmo IP num curtíssimo espaço de tempo (< 10 segundos)
+                            elif curr_ip and orig_ip and curr_ip == orig_ip:
+                                try:
+                                    orig_time = _as_utc_datetime(original_req.transaction_date)
+                                    curr_time = _as_utc_datetime(input_data["transaction_date"])
+                                    diff_seconds = (curr_time - orig_time).total_seconds()
+                                    
+                                    if 0 <= diff_seconds < 10:
+                                        r15_triggered = True
+                                        detail_msg = f"Aprovação disfarçada: Voto com o mesmo IP ({curr_ip}) apenas {diff_seconds:.1f}s após a criação do pedido."
+                                except (AttributeError, TypeError, ValueError, OverflowError) as e:
+                                    logger.warning("Falha ao calcular datas na R15: %s", e)
+                                    
+                            if r15_triggered:
+                                rule_hits.append({
+                                    "code": "R15",
+                                    "points": 3,
+                                    "detail": detail_msg
+                                })
+
+            # R16: Afrouxamento de controle seguido de uso (v5) -> 3 pontos
+            control_loosened = context_data.get("control_loosened_at")
+            company_opening = input_data.get("source_account", {}).get("opening_date")
+            if control_loosened and company_opening and context_data.get("event") == "request":
+                try:
+                    company_opening_time = _as_utc_datetime(company_opening)
+                    loosened_time = _as_utc_datetime(control_loosened)
+                    current_time = _as_utc_datetime(input_data["transaction_date"])
+
+                    company_age = current_time - company_opening_time
+                    elapsed_since_loosened = current_time - loosened_time
+                    if (
+                        company_age >= timedelta(days=7)
+                        and timedelta(0) <= elapsed_since_loosened <= timedelta(hours=24)
+                    ):
+                        diff_hours = elapsed_since_loosened.total_seconds() / 3600.0
+                        rule_hits.append({
+                            "code": "R16",
+                            "points": 3,
+                            "detail": f"Afrouxamento recente: pedido criado {diff_hours:.1f}h após alteração crítica de controles."
+                        })
+                except (AttributeError, TypeError, ValueError, OverflowError) as e:
+                    logger.warning("Falha ao calcular datas na R16: %s", e)
+
+            # Histórico de pedidos não rejeitados deste autor, usado por R17 e R18
+            author_past_requests = []
+            if author_id:
+                for tx in user_history:
+                    tx_payload = getattr(tx, "payload", {}) or {}
+                    if isinstance(tx_payload, str):
+                        try:
+                            tx_payload = json.loads(tx_payload)
+                        except json.JSONDecodeError:
+                            logger.warning("Payload inválido em JSON no histórico do autor para R17/R18.")
+                            continue
+
+                    if not isinstance(tx_payload, dict):
+                        continue
+
+                    tx_context = tx_payload.get("context")
+                    if (
+                        isinstance(tx_context, dict)
+                        and tx_context.get("author_id") == author_id
+                        and tx_context.get("event") == "request"
+                    ):
+                        author_past_requests.append((tx, tx_payload))
+
+            # R17: Dispositivo novo do sócio (valor >= R$ 500, histórico >= 3) -> 2 pontos
+            if (
+                context_data.get("event") == "request"
+                and amount >= 50000
+                and len(author_past_requests) >= 3
+            ):
+                recent_author_devices = {
+                    tx_payload["source"]["device_id"]
+                    for _, tx_payload in author_past_requests[:20]
+                    if isinstance(tx_payload.get("source"), dict)
+                    and tx_payload["source"].get("device_id")
+                }
+                current_device = input_data.get("source", {}).get("device_id")
+                if current_device and current_device not in recent_author_devices:
+                    rule_hits.append({
+                        "code": "R17",
+                        "points": 2,
+                        "detail": f"Dispositivo novo do sócio: aparelho {current_device} não consta nos pedidos recentes deste autor."
+                    })
+
+            # R18: Deslocamento ou mudança de IP do sócio em até 12h -> 3 pontos
+            if context_data.get("event") == "request" and author_past_requests:
+                last_tx, last_payload = author_past_requests[0]
+                current_source = input_data.get("source", {})
+                last_source = last_payload.get("source")
+                if isinstance(last_source, dict):
+                    try:
+                        previous_time = _as_utc_datetime(last_tx.transaction_date)
+                        current_time = _as_utc_datetime(input_data["transaction_date"])
+                        diff_hours = (current_time - previous_time).total_seconds() / 3600.0
+
+                        if 0 < diff_hours <= 12:
+                            current_geo = current_source.get("geolocation")
+                            previous_geo = last_source.get("geolocation")
+                            current_ip = current_source.get("ip")
+                            previous_ip = last_source.get("ip")
+                            triggered = False
+                            detail = ""
+
+                            if (
+                                isinstance(current_geo, dict)
+                                and isinstance(previous_geo, dict)
+                                and all(key in current_geo for key in ("latitude", "longitude"))
+                                and all(key in previous_geo for key in ("latitude", "longitude"))
+                            ):
+                                distance_km = calculate_distance_km(
+                                    float(previous_geo["latitude"]),
+                                    float(previous_geo["longitude"]),
+                                    float(current_geo["latitude"]),
+                                    float(current_geo["longitude"]),
+                                )
+                                if distance_km >= 50 and distance_km / diff_hours > 900:
+                                    triggered = True
+                                    detail = f"Deslocamento impossível do sócio: {distance_km:.1f} km em {diff_hours:.1f} h."
+                            elif current_ip and previous_ip and current_ip != previous_ip:
+                                triggered = True
+                                detail = f"Mudança de IP do sócio ({previous_ip} para {current_ip}) em {diff_hours:.1f} h sem geolocalização."
+
+                            if triggered:
+                                rule_hits.append({
+                                    "code": "R18",
+                                    "points": 3,
+                                    "detail": detail
+                                })
+                    except (AttributeError, TypeError, ValueError, OverflowError) as e:
+                        logger.warning("Falha na avaliação da R18: %s", e)
+
         # Agrupamento e Tetos por Família (Conforme RFC)
         value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28"]]
         frac_rules = [h for h in rule_hits if h["code"] in ["R8", "R29"]]
         internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]
-        other_rules = [h for h in rule_hits if h["code"] not in ["R1", "R3", "R4", "R28", "R8", "R29", "R13", "R14", "R16"]]
+        session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]]
+        other_rules = [h for h in rule_hits if h["code"] not in ["R1", "R3", "R4", "R28", "R8", "R29", "R13", "R14", "R16", "R17", "R18", "R19", "R32"]]
 
         value_points = min(3, sum(h["points"] for h in value_rules))
         frac_points = min(2, sum(h["points"] for h in frac_rules))
         internal_points = min(3, sum(h["points"] for h in internal_controls_rules))
+        session_points = min(4, sum(h["points"] for h in session_rules))
         other_points = sum(h["points"] for h in other_rules)
-        total_score = value_points + frac_points + internal_points + other_points
+        total_score = value_points + frac_points + internal_points + session_points + other_points
 
         # 5. Mapeamento de Status baseado no Score total acumulado
         # 0-1: approved | 2-4: two_factor_required | >=5: rejected[cite: 20]
