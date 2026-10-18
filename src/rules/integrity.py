@@ -1,5 +1,8 @@
 """Pure integrity check C1 for EPP votes and executions."""
 
+from rules.common import event_context, payload
+from rules.operational_profile import same_payment
+
 
 def c1(event: dict, profile: dict, context: dict) -> tuple[int, str] | None:
     event_context = event.get("context") or {}
@@ -19,5 +22,18 @@ def c1(event: dict, profile: dict, context: dict) -> tuple[int, str] | None:
         return 0, "Request hash differs from the stored request."
     if event_context.get("event") == "execution" and context.get("has_prior_execution"):
         return 0, "This request already has a non-rejected execution."
+    return None
+
+
+def c1_v2(event: dict, profile: dict, context: dict) -> tuple[int, str] | None:
+    """C1 also confirms the execution repeats the stored payment exactly."""
+    result = c1(event, profile, context)
+    if result is not None:
+        return result
+    if event_context(event).get("event") != "execution":
+        return None
+    request = context.get("request_event")
+    if request is None or not same_payment(event, payload(request)):
+        return 0, "Execution amount, payer account, destination document, or destination account differs from the stored request."
     return None
 

@@ -1,7 +1,10 @@
 import re
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Optional, Dict, Any, Literal
+from pydantic import (
+    BaseModel, ConfigDict, Field, StrictInt, StrictStr,
+    field_validator, model_validator,
+)
 
 class OwnerSchema(BaseModel):
     document_number: str
@@ -39,6 +42,52 @@ class SourceSchema(BaseModel):
     ip: str
     geolocation: Optional[GeolocationSchema] = None
 
+
+class OperationalApprovalSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    partner_id: StrictStr = Field(..., min_length=1)
+    approved_at: datetime
+
+    @field_validator("approved_at")
+    @classmethod
+    def approval_requires_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("operational profile approval timestamps must include a timezone")
+        return value.astimezone(timezone.utc)
+
+
+class OperationalProfileSchema(BaseModel):
+    """Immutable EPP snapshot; each approved change increments ``version``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    profile_id: StrictStr = Field(..., min_length=1)
+    version: StrictInt = Field(..., ge=1)
+    operation_type: Literal["payroll"]
+    status: Literal["active", "inactive", "revoked"]
+    company_id: StrictStr = Field(..., min_length=1)
+    responsibility_id: StrictStr = Field(..., min_length=1)
+    max_payment_cents: StrictInt = Field(..., gt=0)
+    max_batch_cents: StrictInt = Field(..., gt=0)
+    approvals: list[OperationalApprovalSchema] = Field(..., min_length=1)
+    expires_at: datetime
+
+    @field_validator("expires_at")
+    @classmethod
+    def profile_expiration_requires_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("operational profile expiration must include a timezone")
+        return value.astimezone(timezone.utc)
+
+
+class OperationalProfileReferenceSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile_id: StrictStr = Field(..., min_length=1)
+    version: StrictInt = Field(..., ge=1)
+    status: Literal["active", "inactive", "revoked"]
+
 # Este é o Schema que recebe a requisição (O payload de Entrada do PDF)
 class PixTransactionInput(BaseModel):
     id: str
@@ -70,6 +119,31 @@ class PixTransactionInput(BaseModel):
             not self.context.get("request_id") or not self.context.get("request_hash")
         ):
             raise ValueError("context.request_id and context.request_hash are required")
+        if "operational_profile" in self.context:
+            if event != "request" or self.context.get("origin") != "scheduled":
+                raise ValueError("context.operational_profile is only valid on scheduled requests")
+            operational_profile = OperationalProfileSchema.model_validate(self.context["operational_profile"])
+            if (
+                operational_profile.company_id != self.context.get("company_id")
+                or operational_profile.responsibility_id != self.context.get("responsibility_id")
+            ):
+                raise ValueError("operational profile company and responsibility must match context")
+            if not self.context.get("batch_id"):
+                raise ValueError("context.batch_id is required for an operational profile")
+            batch_total = self.context.get("batch_total_cents")
+            if type(batch_total) is not int or batch_total <= 0:
+                raise ValueError("context.batch_total_cents must be a positive integer")
+            if type(self.context.get("beneficiary_authorized")) is not bool:
+                raise ValueError("context.beneficiary_authorized must be a boolean")
+        if "operational_profile_ref" in self.context:
+            if event != "execution" or self.context.get("origin") != "scheduled":
+                raise ValueError("context.operational_profile_ref is only valid on scheduled executions")
+            OperationalProfileReferenceSchema.model_validate(self.context["operational_profile_ref"])
+            if not self.context.get("batch_id"):
+                raise ValueError("context.batch_id is required for a profiled payroll execution")
+            batch_total = self.context.get("batch_total_cents")
+            if type(batch_total) is not int or batch_total <= 0:
+                raise ValueError("context.batch_total_cents must be a positive integer")
         return self
 
 # Este é o Schema que devolvemos como resposta (O payload de Saída do PDF)

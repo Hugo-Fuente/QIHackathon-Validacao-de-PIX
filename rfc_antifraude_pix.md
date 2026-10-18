@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Time** | Grupo 27: Hugo Gomes · Leandro Apolinário Leite · Mateus Carósio |
-| **Data** | 17/10/2026 |
-| **Versão** | 7 |
+| **Data** | 18/10/2026 |
+| **Versão** | 7.2 |
 
 ## Contextualização
 
@@ -86,7 +86,7 @@ analisado só pelo núcleo; o `context` é uma extensão opcional da entrada.
 
 | Método | Caminho | O que faz | Entrada (campos que importam) | Saídas (status e quando) |
 |---|---|---|---|---|
-| `POST` | `/pix/transaction` | Valida, analisa, grava e devolve a decisão. **Idempotente:** `id` do evento (Pix ou voto) com `UNIQUE` no banco + `payload_hash` do payload normalizado. | `id`; `amount` (centavos); `transaction_date` (com fuso); `source_account.owner.document_number` e `opening_date`; `destination_account` (`participant`, `branch`, `account_number`, `owner.document_number`, `opening_date`, opcional no EPP); `source.device_id`, `channel`, `ip`, `geolocation` (opcional). **`context` (opcional, enviado pelo EPP):** `event` (`request`, `vote`, `execution`), `origin` (`immediate`, `scheduled`), `company_id`, `author_id`, `responsibility_id`, e os fatos que só o EPP conhece (saldo livre, limites aplicáveis, ativação da conta, mudanças de controle e entradas das últimas 24 h, liberação de reserva, documentos dos sócios; novos na v5: `request_id` e `request_hash`, obrigatórios em `vote` e `execution`, `credential_changed_at` e `destination_partner_documents`, opcionais; na v6, uma execução por pedido: `id` novo para o mesmo `request_id` é duplicata) | `201` análise criada, com `key`, `status` e `metadata` (`risk_score`, `reasons`, `rules_version`, `recommended_actions`, `not_evaluated`); `200` mesmo `id` e mesmo payload: devolve a análise já gravada, sem reprocessar; `400` corpo ilegível ou JSON malformado; `409` mesmo `id` com payload diferente; `422` campo ausente ou de tipo errado, `amount` não inteiro ou ≤ 0, data sem fuso, documento sem 11 ou 14 dígitos, latitude ou longitude fora da faixa, `context` com `event` inválido ou sem `author_id`, ou `vote`/`execution` sem `request_id` e `request_hash`; `500` falha interna: tudo é revertido e o reenvio é seguro |
+| `POST` | `/pix/transaction` | Valida, analisa, grava e devolve a decisão. **Idempotente:** `id` do evento (Pix ou voto) com `UNIQUE` no banco + `payload_hash` do payload normalizado. | `id`; `amount` (centavos); `transaction_date` (com fuso); `source_account.owner.document_number` e `opening_date`; `destination_account` (`participant`, `branch`, `account_number`, `owner.document_number`, `opening_date`, opcional no EPP); `source.device_id`, `channel`, `ip`, `geolocation` (opcional). **`context` (opcional, enviado pelo EPP):** `event` (`request`, `vote`, `execution`), `origin` (`immediate`, `scheduled`), `company_id`, `author_id`, `responsibility_id` e os fatos que só o EPP conhece; `request_id` e `request_hash` são obrigatórios em `vote` e `execution`; `credential_changed_at` e `destination_partner_documents` são opcionais. Para folha autorizada, o pedido inclui o snapshot `operational_profile` e os campos `batch_id`, `batch_total_cents` e `beneficiary_authorized`; a execução envia `operational_profile_ref` e o mesmo lote/total, conforme o contrato de início frio abaixo. | `201` análise criada, com `key`, `status` e `metadata` (`risk_score`, `reasons`, `rules_version`, `ruleset_hash`, `recommended_actions`, `not_evaluated` e, quando aplicável, `operational_profile`); `200` mesmo `id` e mesmo payload: devolve a análise já gravada, sem reprocessar; `400` corpo ilegível ou JSON malformado; `409` mesmo `id` com payload diferente; `422` campo ausente ou de tipo errado, `amount` não inteiro ou ≤ 0, data sem fuso, documento sem 11 ou 14 dígitos, latitude ou longitude fora da faixa, `context` com `event` inválido ou sem `author_id`, ou `vote`/`execution` sem `request_id` e `request_hash`; `500` falha interna: tudo é revertido e o reenvio é seguro |
 | `GET` | `/pix/transaction/{id}` | Devolve a análise gravada (somente leitura). `{id}` é o `id` do evento, não o `key`. | `id` na URL | `200` `key`, `status` e `metadata`; `404` nenhuma análise para esse `id` |
 
 ### Banco de Dados (Somente diagrama)
@@ -134,6 +134,7 @@ erDiagram
         string status "approved, rejected ou two_factor_required"
         int risk_score "soma final dos pontos"
         string rules_version "versão da política aplicada"
+        string ruleset_hash "hash da configuração usada"
         jsonb not_evaluated "regras que não puderam ser avaliadas por dado ausente (regra e motivo)"
         timestamptz analyzed_at "quando a decisão foi tomada"
     }
@@ -195,13 +196,20 @@ histórico, o motor usa **degraus fixos**, e só deixa o limite acompanhar o cli
 | **Frio** | Pagador com < 3 Pix não rejeitados | R4, R5 e R7 desligadas; L = R$ 5.000; degraus fixos: R10 (conta de até 30 dias), R33 (conta mais antiga, de R$ 2.000 a R$ 4.999,99) e R1 (a partir de R$ 5.000) |
 | **Em formação** | De 3 a 9 Pix, ou 10 ou mais que ainda não cumprem os dias e a antiguidade do perfil maduro | R5 e R7 (≥ 3 Pix) e R4 (≥ 5 Pix) ligam; L continua R$ 5.000 e os degraus continuam |
 | **Maduro** | ≥ 10 Pix não rejeitados, em ≥ 5 dias distintos, o mais antigo há ≥ 14 dias; Pix para o próprio documento não contam | L relativo (3× a mediana); o R33 desliga |
-| **EPP, frio ou em formação** | Empresa ativada há ≤ 30 dias, ou com < 10 saídas | R30 não avalia; o R24 aplica o degrau (R$ 5.000 vale 1; R$ 20.000 vale 2) |
+| **EPP, frio ou em formação** | Empresa ativada há ≤ 30 dias, ou com < 10 saídas | R30 não avalia; o R24 aplica o degrau (R$ 5.000 vale 1; R$ 20.000 vale 2), exceto folha agendada que cabe em perfil operacional ativo e aprovado |
 | **EPP, maduro** | Ativada há ≥ 30 dias e com ≥ 10 saídas | R30 avalia; o R24 desliga |
 
-- **Só o observado vale.** Faturamento, renda ou porte declarados no cadastro nunca entram no perfil nem no
-  degrau, nem para afrouxar nem como ponto de partida do cliente novo: quem declara pode mentir. O motor usa os
-  Pix que viu e as datas registradas pelo banco (`opening_date`, ativação); o declarado só aperta, como alerta
-  de 0 ponto (A4).
+**Perfil operacional de folha (v7.2).** A mediana de uma padaria recém-onboardada não representa a folha que ela precisa pagar desde o primeiro mês. O EPP mantém o perfil principal e envia, no pedido agendado, um snapshot com `profile_id`, `version`, `operation_type=payroll`, `status=active`, `company_id`, `responsibility_id`, `max_payment_cents`, `max_batch_cents`, `expires_at` e `approvals` (IDs de pelo menos dois sócios distintos do autor e os respectivos `approved_at`). O pedido também traz `batch_id`, `batch_total_cents` e `beneficiary_authorized=true`, afirmado pelo EPP somente após consultar o cadastro ativo da folha. A autorização é válida por no máximo 365 dias e precisa estar aprovada antes do evento. Cada mudança exige uma nova versão e as aprovações correspondentes.
+
+Esse perfil só neutraliza a R24 para pedido/executação `scheduled` se o Pix estiver abaixo dos tetos por pagamento e lote e o beneficiário estiver autorizado. Não substitui as demais regras nem o fluxo normal de aprovação do EPP. Na execução, o EPP envia `operational_profile_ref` com o mesmo ID/versão em estado ativo e os mesmos `batch_id`/`batch_total_cents`; o motor exige correspondência com o pedido gravado, incluindo valor, pagador, documento e conta destino, além de `request_id`/`request_hash` e ausência de execução anterior. Divergência, expiração ou revogação restabelece o degrau R24. O ID, a versão e o lote usados ficam em `metadata.operational_profile`; o snapshot completo de aprovação fica no `payload` JSONB do pedido para auditoria.
+
+O motor não autentica votos nem administra perfis de folha. Esses fatos são atestados pelo serviço EPP, chamador autenticado pelo `INTERNAL-TOKEN`; esse segredo deve ser exclusivo do serviço EPP. O cadastro operacional principal e as aprovações ficam no EPP, e cada evento persistido no motor conserva a cópia recebida para reproduzir a decisão.
+
+- **O perfil comportamental usa só o observado.** Faturamento, renda ou porte declarados no cadastro nunca
+  entram na mediana nem elevam o limite geral: quem declara pode mentir. A exceção de início frio da folha é
+  uma autorização operacional separada, aprovada por sócios, limitada por pagamento/lote, beneficiário e
+  validade, e não altera o perfil comportamental. O motor usa os Pix que viu e as datas registradas pelo banco
+  (`opening_date`, ativação); o declarado só aperta, como alerta de 0 ponto (A4).
 - **Quem aperta usa histórico curto; quem afrouxa exige perfil maduro.** R4, R5 e R7 só somam pontos, então
   servem com 3 a 5 Pix. L e o valor habitual liberam valor, então exigem perfil maduro (o valor habitual já
   exige 3 dias distintos e 14 dias).
@@ -218,11 +226,10 @@ histórico, o motor usa **degraus fixos**, e só deixa o limite acompanhar o cli
   não rejeitados)`; sem perfil maduro, `L = R$ 5.000`. No EPP o pagador é a empresa e a mediana é de todas as
   saídas dela (o R4 continua por `responsibility_id`).
 - **Onde vale:** R1 (`amount` ≥ L), R3 (soma ≥ 2 × L), R28 (banda de 90% a 99,99% de L) e R29 (soma ≥ L).
-- **Regra de desenho:** valor em reais só entra numa regra como *piso de ruído* (abaixo dele o sinal não compensa)
-  ou como *ponto de partida de quem não tem histórico*; com histórico, o limite acompanha o cliente. R4 (5× a
-  mediana), R20 (70% do saldo livre), R25 (80% das entradas) e R30 (3× a média diária) já eram relativos, e os
-  valores fixos deles são só pisos. R9 e R26 ficam fixos de propósito porque medem o destino, não o porte do
-  pagador; o R24 também, porque vale para conta que ainda não tem histórico.
+- **Regra de desenho:** quando há histórico comparável, os limites acompanham o perfil. R4 usa 5× a mediana,
+  R25 usa 3× a mediana das entradas em 24 h, R26 usa 3× a mediana dos totais recebidos pelo destino em 24 h,
+  R20 mede a fração do saldo livre e R30 compara com a média diária. R9 segue fixo porque mede concentração
+  por destino; o R24 também, porque vale para conta sem perfil maduro.
 - **Por que isso não abre a porta:** a mediana resiste a um Pix atípico antigo; L sobe só até 3× o que o cliente
   já costuma pagar (o R4 pega a partir de 5×); e aparelho novo, contraparte nova e sinais de sessão continuam
   somando. Para quem costuma pagar R$ 4.000, o R1 passa a pontuar em R$ 12.000, não em R$ 5.000.
@@ -287,9 +294,9 @@ criou o pedido; "recorrente" segue a definição de valor habitual acima, com a 
 | **R21 Liberação de reserva seguida de saída** | Liberação ou transferência entre reservas e, em ≤ 30 min, saída do autor ≥ 80% do liberado para contraparte nova | 3 | Tira da empresa o dinheiro de impostos ou folha. |
 | **R22 Destino é sócio** | Contraparte com o CPF de um sócio, valor ≥ R$ 2.000; não vale para recorrente com valor ±20% (pró-labore) | 1 | O dinheiro é da empresa, não dos sócios; isolada pesa pouco, soma com R13, R15 ou R20. |
 | **R23 Contraparte nova para a responsabilidade** | Responsabilidade com ≥ 5 pagamentos e ≤ 3 contrapartes em 90 dias recebe pedido de contraparte nunca paga por ela, valor ≥ R$ 1.000 | 1 | Responsabilidade previsível (impostos) pagando destino fora do padrão. Não soma com o R5: o mesmo fato não conta duas vezes. |
-| **R24 Conta recém-ativada com saída grande** | Empresa sem perfil maduro (ativada há ≤ 30 dias, ou com < 10 saídas): saída externa ≥ R$ 5.000 vale 1; ≥ R$ 20.000 vale 2 | 1–2 | Usa a ativação, não o cadastro, pois a conta só movimenta depois da aprovação do back-office. Vale também para a empresa antiga que quase não movimenta (conta dormente ou nova para o motor): o que falta é histórico, não idade. É o degrau do EPP no início frio; quando o perfil amadurece, passa a valer o R30. |
-| **R25 Passagem entrada → saída** | Entradas externas ≥ R$ 10.000 em 24 h e saída ≥ 80% delas em ≤ 2 h para contraparte nova, em empresa ativa há ≤ 90 dias ou só com pagadores novos | 3 | Conta de passagem. É a de maior risco de falso positivo: calibrar primeiro. |
-| **R26 Destinatário em rede** | Mesmo documento de contraparte recebendo pedidos de ≥ 4 empresas em 24 h, soma ≥ R$ 10.000, contando o atual; não vale se for recorrente para a empresa atual | 3 | Só a plataforma enxerga várias empresas. Revisar a base legal (LGPD) e consultar por hash do documento. |
+| **R24 Conta recém-ativada com saída grande** | Empresa sem perfil maduro (ativada há ≤ 30 dias, ou com < 10 saídas): saída externa ≥ R$ 5.000 vale 1; ≥ R$ 20.000 vale 2. Não pontua para folha `scheduled` coberta pelo perfil ativo e aprovado da seção de início frio | 1–2 | Usa a ativação, não o cadastro. O perfil versionado evita comparar a primeira folha com uma mediana inexistente; limites, beneficiário autorizado, duas aprovações e conferência exata na execução impedem a isenção genérica de qualquer saída grande. |
+| **R25 Passagem entrada → saída** | Entradas externas em 24 h ≥ 3× a mediana das entradas externas em janelas de 24 h dos 30 dias anteriores; saída ≥ 80% delas em ≤ 2 h para contraparte nova, em empresa ativa há ≤ 90 dias ou só com pagadores novos. O EPP envia `context.inflows_24h_median`; sem mediana positiva, não avalia | 3 | Compara o fluxo com o histórico da empresa, sem piso monetário fixo. Calibrar primeiro, pois é a regra de maior risco de falso positivo. |
+| **R26 Destinatário em rede** | Mesmo documento de contraparte recebendo pedidos de ≥ 4 empresas em 24 h; total atual ≥ 3× a mediana dos totais recebidos em janelas de 24 h nos 30 dias anteriores, calculada em dias ativos com pelo menos 5 janelas; não vale se for recorrente para a empresa atual | 3 | A plataforma enxerga várias empresas. A mediana compara o destino com a própria atividade recente; revisar a base legal (LGPD) e consultar por hash do documento. |
 | **R27 Sócio de muitas empresas (alerta)** | Mesmo CPF de sócio (`partner_documents`) em ≥ 3 `company_id` distintos com eventos nos últimos 30 dias, contando o atual | 0 | Só alerta, em `reasons`, para o back-office; não altera o status. Usa a atividade que o motor viu, não o cadastro, que está fora do escopo. |
 | **R30 Saída da empresa fora do padrão** | Saídas livres da empresa em 24 h (contando a atual; exclui pagamento coberto por reserva, execução `scheduled` e Pix de valor habitual para contraparte recorrente) ≥ 3× a média diária aparada dos 30 dias anteriores à janela (soma das saídas livres sem o dia de maior saída, dividida por 29; dia sem saída conta zero) e ≥ R$ 10.000; empresa ativada há ≥ 30 dias e com ≥ 10 saídas no período | 2 | R13, R14 e R17–R19 olham um autor por vez e o R3 só olha 10 min: quatro sócios abaixo do próprio limite passavam. É o único sinal que não depende de quem pede. 3× filtra a oscilação de fim de mês; o piso evita empresa pequena; sem 30 dias não há média confiável. Sem excluir o valor habitual, o fornecedor mensal passaria de 3× a média diária todo mês. A média é aparada para que um único dia atípico no passado não infle a linha de base e deixe passar o desvio. |
 | **R31 Destino ligado a sócio** | Contraparte é CNPJ do qual um sócio da empresa também é sócio, ou CPF de sócio de outra empresa da plataforma (`destination_partner_documents`, quando a plataforma conhece a contraparte); valor ≥ R$ 2.000; não vale para recorrente com valor ±20% | 2 | Desviar para a segunda empresa do mesmo sócio contorna o R22, que só compara CPF. Pesa mais que o R22 porque exige vínculo comprovado. R22 e R31 são o mesmo fato e compartilham teto. |
@@ -299,7 +306,7 @@ criou o pedido; "recorrente" segue a definição de valor habitual acima, com a 
 
 | Checagem | Lógica e parâmetros | Efeito | Por quê |
 |---|---|---|---|
-| **C1 Pedido, voto e execução** | `request_id` e `request_hash` obrigatórios (`422` se faltarem). Pedido inexistente, `rejected` ou com `request_hash` diferente do gravado no evento `request`; em `execution`, outra `execution` não rejeitada do mesmo `request_id` (uma execução por pedido; parcelas fora do escopo) | `rejected`; `RULE_HIT` `C1` com 0 pontos e o motivo | Nada ligava o voto e a execução ao conteúdo do pedido: valor ou destino podiam ser editados depois da aprovação. Hash diferente não tem versão "meio suspeita", por isso não é pontuação. As demais regras seguem rodando para registrar os motivos. A segunda execução com `id` novo escaparia da idempotência e, com a isenção do agendamento, das regras comportamentais. |
+| **C1 Pedido, voto e execução (v2)** | `request_id` e `request_hash` obrigatórios (`422` se faltarem). Pedido inexistente, `rejected` ou com hash diferente; em `execution`, também compara valor, pagador, conta pagadora, documento e conta destino com o pedido armazenado. Uma segunda execução não rejeitada para o mesmo pedido é inválida (parcelas fora do escopo). | `rejected`; `RULE_HIT` `C1` com 0 pontos e o motivo | A execução precisa repetir o pagamento que foi pedido. A C1 v2 confere os campos financeiros além do vínculo por hash, então uma divergência não recebe a isenção de agendamento nem passa como execução autorizada. |
 
 **Combinação e faixas** (a C1 roda primeiro e, se acionada, força `rejected`; as regras aplicáveis rodam
 em ordem fixa, sem short-circuit; a ordem só estabiliza a lista de motivos, e cada regra acionada gera
@@ -313,11 +320,11 @@ um `RULE_HIT` com os pontos antes do teto)
   soma no máximo 3, reprovar exige pelo menos 2 pontos de outros sinais.
 - **Autorreferência:** se `source_document` = `destination_document`, R5, R6 e R9 não pontuam.
 - **Pagamento programado:** a execução pelo agendador (`event` = `execution` e `origin` = `scheduled`)
-  não pontua R2, R3, R5 nem R17 a R19: o lote da folha não deve ser rejeitado por rajada e contraparte
-  nova, e o aparelho de quem agendou não existe na execução. O pedido que cria o agendamento
-  (`request`) é avaliado por completo; sem isso, quem agenda um pagamento futuro a contraparte nova, de
-  aparelho novo, passava limpo. Na execução continuam valendo a C1 e as regras de estado da conta
-  (R16, R20, R21, R24, R25).
+  não pontua R2, R3, R5 nem R17 a R19. O pedido que cria o agendamento (`request`) passa pelas outras
+  regras. A R24 também não pontua quando a folha está coberta por perfil operacional ativo e aprovado,
+  dentro dos limites por pagamento e lote, e a execução corresponde exatamente ao pedido. Sem esse perfil,
+  se ele vencer/for revogado ou houver divergência, a R24 normal de início frio continua valendo. A C1 e as
+  demais regras permanecem ativas.
 - **Quem aplica a decisão:** no EPP, `two_factor_required` pode virar segundo fator do autor ou
   aprovação adicional de outro sócio, e `rejected` em um voto significa que o voto não conta. Quem
   aplica é o EPP. Em evento EPP com status diferente de `approved`, se R15, R16, R20, R21, R22, R30, R31 ou R32 for acionada (ou a C1, por pedido ausente, rejeitado ou `request_hash` diferente), `metadata.recommended_actions` traz `notify_all_partners_mobile`: o EPP avisa **cada sócio pelo celular dele**, inclusive os que não votaram, antes de liberar o dinheiro. E-mail nunca é o único canal, porque quem controla uma caixa de e-mail (a do autor, a da empresa ou a de outro sócio) controla o que os demais veem. O contrato do aviso está abaixo. O detalhe de `reasons` não deve ser
@@ -470,6 +477,7 @@ detalhe de cada parâmetro; aqui está o mapa.
 | Um dia atípico no passado inflava a média diária do R30 e deixava passar o desvio | Média diária aparada (sem o dia de maior saída) |
 | Sócio fraudulento controla o e-mail e esconde o aviso dos demais | `notify_all_partners_mobile`: push no aparelho de cada sócio, SMS de reserva, contato anterior à troca recente, e-mail só como cópia, o autor não controla a entrega; gatilhos ampliados (R15 e C1 por divergência) |
 | Cliente sem histórico: a v7 anterior liberava o limite relativo com 5 Pix, e o início frio estava espalhado em mínimos de cada regra | Estágios frio, em formação e maduro; L relativo só com perfil maduro (10 Pix, 5 dias distintos, 14 dias); R33 (degrau de varejo) e R24 generalizada (degrau do EPP); nenhum dado declarado entra |
+| Folha legítima de alto valor no início frio do EPP | R24 podia gerar atrito em pagamentos recorrentes de funcionários antes de haver histórico | R24 v2 aceita apenas perfil de folha versionado, com dois aprovadores, limites por pagamento/lote, beneficiário autorizado pelo EPP, validade máxima de 365 dias e execução idêntica ao pedido; C1 v2 confere os dados financeiros da execução |
 | Z-score, setor e faturamento declarado como alternativas | Z-score descartado (20 Pix; um valor infla o desvio); setor (CNAE) vira alerta A7; faturamento declarado só aperta (A4), nunca afrouxa |
 
 Ficaram de fora, de propósito: tabelas novas de pedido, voto, reserva e resultado de pagamento, `voter_id` e

@@ -75,6 +75,7 @@ def source_data(value: dict) -> dict:
 def recurrent(
     history: tuple[dict, ...] | list[dict], destination_doc: str, event_date: datetime
 ) -> tuple[list[dict], bool]:
+    shared = params.shared()
     related = [
         transaction for transaction in history
         if destination_document(payload(transaction)) == destination_doc
@@ -82,17 +83,18 @@ def recurrent(
     ]
     dates = {transaction_datetime(transaction).date() for transaction in related}
     mature = (
-        len(dates) >= params.RECURRENT_DISTINCT_DAYS
+        len(dates) >= shared["RECURRENT_DISTINCT_DAYS"]
         and bool(related)
         and event_date - min(transaction_datetime(transaction) for transaction in related)
-        >= timedelta(days=params.RECURRENT_AGE_DAYS)
+        >= timedelta(days=shared["RECURRENT_AGE_DAYS"])
     )
     return related, mature
 
 
 def habitual_value(amount: int, related: list[dict], mature: bool) -> bool:
+    shared = params.shared()
     maximum = max((int(tx["amount"]) for tx in related), default=0)
-    return mature and maximum > 0 and amount <= maximum * params.HABITUAL_AMOUNT_FACTOR
+    return mature and maximum > 0 and amount <= maximum * shared["HABITUAL_AMOUNT_FACTOR"]
 
 
 def distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

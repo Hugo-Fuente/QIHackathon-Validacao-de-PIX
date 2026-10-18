@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from errors.custom_errors import ConflictError, NotFoundError, ServiceUnavailableError
 from history_snapshot import PixHistory
+from rules import params
 from utils.pix_data import destination_key, parse_datetime, source_document
 
 class PixRepository:
@@ -391,12 +392,14 @@ class PixRepository:
             ))
 
         if epp.get("event") == "request":
+            r25_settings = params.for_rule("R25")
+            r26_settings = params.for_rule("R26")
             recent_payer_count = self.count_recent_payers(
-                session, event_date - timedelta(hours=24), event_date,
+                session, event_date - timedelta(hours=r25_settings["R25_WINDOW_HOURS"]), event_date,
             )
             destination_network_activity = self.aggregate_destination_document_activity(
                 session, destination_doc, epp.get("company_id"),
-                event_date - timedelta(hours=24), event_date,
+                event_date - timedelta(hours=r26_settings["R26_WINDOW_HOURS"]), event_date,
             )
             partner_docs = {str(value) for value in epp.get("partner_documents", [])}
             partner_company_counts = self.get_recent_partner_company_counts(
@@ -503,19 +506,54 @@ class PixRepository:
     def aggregate_destination_document_activity(
         self, session: Session, destination_document: str, company_id: str | None, start_date: datetime, end_date: datetime
     ) -> dict:
+        r26_settings = params.for_rule("R26")
         row = session.execute(text("""
-            SELECT COUNT(DISTINCT NULLIF(payload #>> '{context,company_id}', '')) AS company_count,
-                   COALESCE(SUM(amount), 0) AS amount_total,
-                   COALESCE(BOOL_OR(payload #>> '{context,company_id}' = :company_id), FALSE) AS current_company_present
-            FROM pix_transactions
-            WHERE transaction_date BETWEEN :start_date AND :end_date
-              AND destination_document = :destination_document
-              AND payload #>> '{context,event}' = 'request'
+            WITH baseline_windows AS (
+                SELECT window_start
+                FROM generate_series(
+                    CAST(:baseline_start AS timestamptz),
+                    CAST(:baseline_last_window_start AS timestamptz),
+                    INTERVAL '24 hours'
+                ) AS windows(window_start)
+            ), baseline_daily AS (
+                SELECT w.window_start,
+                       COALESCE(SUM(p.amount), 0) AS amount_total
+                FROM baseline_windows AS w
+                LEFT JOIN pix_transactions AS p
+                  ON p.destination_document = :destination_document
+                 AND p.transaction_date >= w.window_start
+                 AND p.transaction_date < w.window_start + INTERVAL '24 hours'
+                 AND p.payload #>> '{context,event}' = 'request'
+                GROUP BY w.window_start
+            ), baseline_stats AS (
+                SELECT COUNT(*) FILTER (WHERE amount_total > 0) AS median_sample_days,
+                       CASE
+                           WHEN COUNT(*) FILTER (WHERE amount_total > 0) >= :minimum_median_days
+                           THEN percentile_cont(0.5) WITHIN GROUP (ORDER BY amount_total)
+                                FILTER (WHERE amount_total > 0)
+                           ELSE NULL
+                       END AS median_amount_total
+                FROM baseline_daily
+            ), current_window AS (
+                SELECT COUNT(DISTINCT NULLIF(payload #>> '{context,company_id}', '')) AS company_count,
+                       COALESCE(SUM(amount), 0) AS amount_total,
+                       COALESCE(BOOL_OR(payload #>> '{context,company_id}' = :company_id), FALSE) AS current_company_present
+                FROM pix_transactions
+                WHERE transaction_date BETWEEN :start_date AND :end_date
+                  AND destination_document = :destination_document
+                  AND payload #>> '{context,event}' = 'request'
+            )
+            SELECT current_window.*, baseline_stats.median_sample_days,
+                   baseline_stats.median_amount_total
+            FROM current_window CROSS JOIN baseline_stats
         """), {
             "start_date": start_date,
             "end_date": end_date,
             "destination_document": destination_document,
             "company_id": company_id,
+            "baseline_start": end_date - timedelta(days=r26_settings["R26_BASELINE_DAYS"] + 1),
+            "baseline_last_window_start": end_date - timedelta(days=2),
+            "minimum_median_days": r26_settings["R26_MIN_BASELINE_DAYS"],
         }).mappings().one()
         return dict(row)
 

@@ -113,18 +113,24 @@ def test_r24_new_company_outflow_has_one_or_two_points_by_amount():
 
 
 def test_r25_external_inflow_to_new_destination_within_two_hours():
-    current = epp_event(amount=800_000, inflows_24h=1_000_000, last_inflow_at=NOW - timedelta(hours=2),
+    current = epp_event(amount=800_000, inflows_24h=1_000_000, inflows_24h_median=300_000,
+                        last_inflow_at=NOW - timedelta(hours=2),
                         account_activated_at=NOW - timedelta(days=90))
     assert r25(current, profile(), {"recent_payer_count": 1})[0] == 3
     current["context"]["last_inflow_at"] = NOW - timedelta(hours=2, seconds=1)
     assert r25(current, profile(), {"recent_payer_count": 1}) is None
 
 
-def test_r26_four_companies_and_ten_thousand_total():
+def test_r26_four_companies_and_three_times_destination_median():
     current = epp_event(amount=500_000)
-    stats = {"company_count": 3, "amount_total": 500_000, "current_company_present": False}
+    stats = {
+        "company_count": 3,
+        "amount_total": 500_000,
+        "current_company_present": False,
+        "median_amount_total": 300_000,
+    }
     assert r26(current, profile(), {"destination_document_activity": stats})[0] == 3
-    stats["amount_total"] = 499_999
+    stats["median_amount_total"] = 400_000
     assert r26(current, profile(), {"destination_document_activity": stats}) is None
 
 

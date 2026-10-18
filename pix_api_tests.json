@@ -1,5 +1,5 @@
 {
-  "description": "Cenários da API antifraude Pix (RFC v7): um por regra, mais C1, legítimos e contrato. Placeholders e formato dos steps estão documentados em run_api_tests.py.",
+  "description": "Cenários da API antifraude Pix (RFC v7.1): um por regra, mais C1, legítimos e contrato. Placeholders e formato dos steps estão documentados em run_api_tests.py.",
   "scenarios": [
     {
       "id": "R1",
@@ -3264,7 +3264,7 @@
     {
       "id": "R25",
       "rule": "R25",
-      "title": "Passagem entrada -> saída: 87% das entradas saem em 1 h para destino novo",
+      "title": "Passagem: entradas de 24 h ≥ 3× a mediana; 80% sai em 1 h para destino novo",
       "steps": [
         {
           "name": "pedido",
@@ -3302,7 +3302,8 @@
               "author_id": "socio-a",
               "account_activated_at": "{{now-40d}}",
               "inflows_24h": 1500000,
-              "last_inflow_at": "{{now-1h}}"
+              "last_inflow_at": "{{now-1h}}",
+              "inflows_24h_median": 300000
             }
           },
           "expect": {
@@ -3320,8 +3321,198 @@
     {
       "id": "R26",
       "rule": "R26",
-      "title": "Destinatário em rede: mesmo CPF recebendo de 4 empresas em 24 h",
+      "title": "Destinatário em rede: 4 empresas e volume ≥ 3× a mediana de 24 h",
       "steps": [
+        {
+          "name": "mediana histórica dia 1",
+          "request": {
+            "id": "{{id:r26_base_1}}",
+            "amount": 100000,
+            "transaction_date": "{{now-10d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 2",
+          "request": {
+            "id": "{{id:r26_base_2}}",
+            "amount": 100000,
+            "transaction_date": "{{now-8d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 3",
+          "request": {
+            "id": "{{id:r26_base_3}}",
+            "amount": 100000,
+            "transaction_date": "{{now-6d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 4",
+          "request": {
+            "id": "{{id:r26_base_4}}",
+            "amount": 100000,
+            "transaction_date": "{{now-4d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 5",
+          "request": {
+            "id": "{{id:r26_base_5}}",
+            "amount": 100000,
+            "transaction_date": "{{now-2d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
         {
           "name": "empresa 1",
           "request": {

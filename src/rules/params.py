@@ -1,127 +1,50 @@
-"""Named RFC v7 thresholds. Monetary amounts are integer cents."""
+"""Compatibility facade for the active immutable rule-set configuration.
 
-CENTS_PER_REAL = 100
+New configuration values live in ``src/config/rulesets/active.json``. The module
+attribute interface keeps existing pure rule functions small while the
+configuration loader remains the only component that reads and validates it.
+"""
 
-# Profile and recurring counterparty
-PROFILE_LIMIT_CENTS = 5_000 * CENTS_PER_REAL
-PROFILE_SAMPLE_SIZE = 20
-PROFILE_MATURE_COUNT = 10
-PROFILE_MATURE_DAYS = 5
-PROFILE_MATURE_AGE_DAYS = 14
-PROFILE_LIMIT_MULTIPLIER = 3
-RECURRENT_DISTINCT_DAYS = 3
-RECURRENT_AGE_DAYS = 14
-HABITUAL_AMOUNT_FACTOR = 1.20
-HABITUAL_MIN_FACTOR = 0.80
+from types import MappingProxyType
 
-# R1–R12
-R1_MIN_AMOUNT_CENTS = 5_000 * CENTS_PER_REAL
-R2_MIN_EVENTS = 5
-R2_WINDOW_SECONDS = 60
-R3_WINDOW_MINUTES = 10
-R3_MIN_EVENTS = 2
-R3_LIMIT_FACTOR = 2
-R3_MIN_TOTAL_CENTS = 10_000 * CENTS_PER_REAL
-R4_MIN_HISTORY = 5
-R4_MIN_AMOUNT_CENTS = 500 * CENTS_PER_REAL
-R4_MEDIAN_FACTOR = 5
-R5_MIN_HISTORY = 3
-R5_PROFILE_MEDIAN_COUNT = 5
-R5_MIN_AMOUNT_CENTS = 1_000 * CENTS_PER_REAL
-R6_MAX_ACCOUNT_AGE_DAYS = 30
-R6_MIN_AMOUNT_CENTS = 1_000 * CENTS_PER_REAL
-R7_MIN_HISTORY = 3
-R7_MIN_AMOUNT_CENTS = 500 * CENTS_PER_REAL
-R8_WINDOW_MINUTES = 5
-R8_MIN_EVENTS = 3
-R8_MAX_EVENT_CENTS = 1_000 * CENTS_PER_REAL
-R8_MIN_TOTAL_CENTS = 2_000 * CENTS_PER_REAL
-R9_MIN_SENDERS = 5
-R9_WINDOW_MINUTES = 60
-R9_MIN_TOTAL_CENTS = 10_000 * CENTS_PER_REAL
-R9_CNPJ_ACCOUNT_AGE_DAYS = 30
-R10_MAX_ACCOUNT_AGE_DAYS = 30
-R10_MIN_AMOUNT_CENTS = 2_000 * CENTS_PER_REAL
-R10_PROFILE_EVENTS = 3
-R11_WINDOW_MINUTES = 60
-R11_MIN_DISTANCE_KM = 50
-R11_MIN_SPEED_KMH = 900
-R12_MIN_PAYER_DOCUMENTS = 3
-R12_MIN_COMPANIES = 2
-R12_WINDOW_HOURS = 24
+from rules.configuration import ACTIVE_RULESET, RULE_CODES
 
-# R13–R27
-R13_WINDOW_HOURS = 24
-R13_MIN_EVENTS = 3
-R13_LOWER_LIMIT_RATIO = 0.90
-R13_UPPER_LIMIT_RATIO = 0.999
-R14_WINDOW_HOURS = 24
-R14_MIN_AMOUNT_RATIO = 0.80
-R14_MAX_AMOUNT_RATIO = 1.20
-R15_MAX_VOTE_SECONDS = 10
-R16_WINDOW_HOURS = 24
-R16_MIN_COMPANY_AGE_DAYS = 7
-R17_MIN_HISTORY = 3
-R17_MIN_AMOUNT_CENTS = 500 * CENTS_PER_REAL
-R18_WINDOW_HOURS = 12
-R18_MIN_DISTANCE_KM = 50
-R18_MIN_SPEED_KMH = 900
-R19_START_HOUR = 0
-R19_END_HOUR = 5
-R19_MIN_HISTORY = 10
-R19_MIN_AMOUNT_CENTS = 1_000 * CENTS_PER_REAL
-R20_WINDOW_HOURS = 24
-R20_MIN_TOTAL_CENTS = 5_000 * CENTS_PER_REAL
-R20_MIN_BALANCE_RATIO = 0.70
-R21_WINDOW_MINUTES = 30
-R21_MIN_RELEASED_RATIO = 0.80
-R22_MIN_AMOUNT_CENTS = 2_000 * CENTS_PER_REAL
-R23_WINDOW_DAYS = 90
-R23_MIN_RESPONSIBILITY_EVENTS = 5
-R23_MAX_DESTINATIONS = 3
-R23_MIN_AMOUNT_CENTS = 1_000 * CENTS_PER_REAL
-R24_MATURE_AGE_DAYS = 30
-R24_MATURE_OUTFLOWS = 10
-R24_SMALL_CENTS = 5_000 * CENTS_PER_REAL
-R24_LARGE_CENTS = 20_000 * CENTS_PER_REAL
-R25_WINDOW_HOURS = 24
-R25_MIN_INFLOW_CENTS = 10_000 * CENTS_PER_REAL
-R25_MIN_OUTFLOW_CENTS = 1_000 * CENTS_PER_REAL
-R25_MIN_OUTFLOW_RATIO = 0.80
-R25_MAX_INFLOW_AGE_HOURS = 2
-R25_MAX_COMPANY_AGE_DAYS = 90
-R26_WINDOW_HOURS = 24
-R26_MIN_COMPANIES = 4
-R26_MIN_TOTAL_CENTS = 10_000 * CENTS_PER_REAL
-R27_WINDOW_DAYS = 30
-R27_MIN_COMPANIES = 3
 
-# R28–R33 and C1
-R28_WINDOW_HOURS = 24
-R28_MIN_EVENTS = 3
-R28_LOWER_LIMIT_RATIO = 0.90
-R29_WINDOW_MINUTES = 60
-R29_MIN_EVENTS = 4
-R29_RECURRENT_EXEMPTION_FACTOR = 1.50
-R30_RECENT_WINDOW_HOURS = 24
-R30_BASELINE_DAYS = 30
-R30_MIN_HISTORY_OUTFLOWS = 10
-R30_MIN_COMPANY_AGE_DAYS = 30
-R30_MIN_TOTAL_CENTS = 10_000 * CENTS_PER_REAL
-R30_BASELINE_MULTIPLIER = 3
-R30_BASELINE_DIVISOR = 29
-R31_MIN_AMOUNT_CENTS = 2_000 * CENTS_PER_REAL
-R32_MIN_AMOUNT_CENTS = 2_000 * CENTS_PER_REAL
-R32_WINDOW_HOURS = 24
-R32_NEW_CREDENTIAL_DAYS = 7
+RULESET_VERSION = ACTIVE_RULESET.version
+RULESET_SHA256 = ACTIVE_RULESET.sha256
+ENABLED_RULES = ACTIVE_RULESET.enabled_rules
+RULE_IMPLEMENTATIONS = ACTIVE_RULESET.implementations
+POINT_OVERRIDES = ACTIVE_RULESET.point_overrides
+FAMILY_CAPS = MappingProxyType({
+    name: (codes, cap) for name, (codes, cap) in ACTIVE_RULESET.family_caps.items()
+})
+TWO_FACTOR_MIN_SCORE = ACTIVE_RULESET.two_factor_min_score
+REJECT_MIN_SCORE = ACTIVE_RULESET.reject_min_score
+_RULE_PARAMETER_VIEWS = MappingProxyType({
+    code: MappingProxyType({
+        **ACTIVE_RULESET.parameter_groups["shared"],
+        **ACTIVE_RULESET.parameter_groups.get(code, {}),
+    })
+    for code in RULE_CODES
+})
 
-FAMILY_CAPS = {
-    "value": (frozenset({"R1", "R3", "R4", "R28"}), 3),
-    "fractioning": (frozenset({"R8", "R29"}), 2),
-    "controls": (frozenset({"R13", "R14", "R16"}), 3),
-    "session": (frozenset({"R17", "R18", "R19", "R32"}), 4),
-    "linked_destination": (frozenset({"R22", "R31"}), 2),
-}
-TWO_FACTOR_MIN_SCORE = 2
-REJECT_MIN_SCORE = 5
 
+def for_rule(code: str) -> MappingProxyType:
+    """Return only the shared and rule-specific settings for ``code``."""
+    try:
+        return _RULE_PARAMETER_VIEWS[code]
+    except KeyError as error:
+        raise KeyError(f"No parameter group registered for {code}") from error
+
+
+def shared() -> MappingProxyType:
+    """Return the immutable settings used by profile and common helpers."""
+    return ACTIVE_RULESET.parameter_groups["shared"]
+
+
+def __getattr__(name: str):
+    """Expose legacy named constants from the validated active rule set."""
+    try:
+        return ACTIVE_RULESET.parameters[name]
+    except KeyError as error:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from error

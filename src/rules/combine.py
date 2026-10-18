@@ -4,7 +4,7 @@ from rules.params import FAMILY_CAPS, REJECT_MIN_SCORE, TWO_FACTOR_MIN_SCORE
 
 
 def combine_hits(hits: list[dict]) -> int:
-    """Sum raw rule points after applying the RFC v7 family caps."""
+    """Sum raw rule points after applying the RFC v7.1 family caps."""
     grouped_codes: set[str] = set()
     score = 0
     for codes, cap in FAMILY_CAPS.values():
