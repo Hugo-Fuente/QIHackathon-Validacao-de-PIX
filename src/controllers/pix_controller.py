@@ -675,19 +675,62 @@ class PixController:
                     except (AttributeError, TypeError, ValueError, OverflowError) as e:
                         logger.warning("Falha na avaliação da R18: %s", e)
 
+            # R20: Esvaziamento (saídas livres em 24h >= 70% do saldo e >= R$ 5.000) -> 2 pontos
+            free_balance = context_data.get("free_balance")
+            if (
+                context_data.get("event") == "request"
+                and isinstance(free_balance, (int, float))
+                and not isinstance(free_balance, bool)
+                and free_balance > 0
+            ):
+                recent_company_outflows = 0
+                for tx in recent_24h_company:
+                    tx_payload = getattr(tx, "payload", {}) or {}
+                    if isinstance(tx_payload, str):
+                        try:
+                            tx_payload = json.loads(tx_payload)
+                        except json.JSONDecodeError:
+                            logger.warning("Payload inválido em JSON no histórico usado pela regra R20.")
+                            continue
+
+                    if not isinstance(tx_payload, dict):
+                        continue
+
+                    tx_context = tx_payload.get("context")
+                    if (
+                        isinstance(tx_context, dict)
+                        and tx_context.get("event") == "request"
+                        and not tx_context.get("responsibility_id")
+                    ):
+                        recent_company_outflows += int(getattr(tx, "amount", 0))
+
+                total_outflow_24h = recent_company_outflows + amount
+                original_free_balance = free_balance + recent_company_outflows
+                if (
+                    total_outflow_24h >= 500000
+                    and total_outflow_24h >= original_free_balance * 0.70
+                ):
+                    rule_hits.append({
+                        "code": "R20",
+                        "points": 2,
+                        "detail": f"Esvaziamento de conta: saídas em 24h (R$ {total_outflow_24h/100:.2f}) atingiram pelo menos 70% do saldo livre."
+                    })
+
         # Agrupamento e Tetos por Família (Conforme RFC)
         value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28"]]
         frac_rules = [h for h in rule_hits if h["code"] in ["R8", "R29"]]
         internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]
+        account_behavior_rules = [h for h in rule_hits if h["code"] in ["R20"]]
         session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]]
-        other_rules = [h for h in rule_hits if h["code"] not in ["R1", "R3", "R4", "R28", "R8", "R29", "R13", "R14", "R16", "R17", "R18", "R19", "R32"]]
+        other_rules = [h for h in rule_hits if h["code"] not in ["R1", "R3", "R4", "R28", "R8", "R29", "R13", "R14", "R16", "R17", "R18", "R19", "R20", "R32"]]
 
         value_points = min(3, sum(h["points"] for h in value_rules))
         frac_points = min(2, sum(h["points"] for h in frac_rules))
         internal_points = min(3, sum(h["points"] for h in internal_controls_rules))
+        account_behavior_points = min(3, sum(h["points"] for h in account_behavior_rules))
         session_points = min(4, sum(h["points"] for h in session_rules))
         other_points = sum(h["points"] for h in other_rules)
-        total_score = value_points + frac_points + internal_points + session_points + other_points
+        total_score = value_points + frac_points + internal_points + account_behavior_points + session_points + other_points
 
         # 5. Mapeamento de Status baseado no Score total acumulado
         # 0-1: approved | 2-4: two_factor_required | >=5: rejected[cite: 20]
