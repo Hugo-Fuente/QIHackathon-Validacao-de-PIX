@@ -628,7 +628,7 @@ class PixController:
                         "detail": f"Dispositivo novo do sócio: aparelho {current_device} não consta nos pedidos recentes deste autor."
                     })
 
-            # R18: Deslocamento ou mudança de IP do sócio em até 12h -> 3 pontos
+        # R18: Deslocamento ou mudança de IP do sócio em até 12h -> 3 pontos
             if context_data.get("event") == "request" and author_past_requests:
                 last_tx, last_payload = author_past_requests[0]
                 current_source = input_data.get("source", {})
@@ -675,7 +675,10 @@ class PixController:
                     except (AttributeError, TypeError, ValueError, OverflowError) as e:
                         logger.warning("Falha na avaliação da R18: %s", e)
 
-            # R20: Esvaziamento (saídas livres em 24h >= 70% do saldo e >= R$ 5.000) -> 2 pontos
+        # R19
+        # DESISTO
+
+        # R20: Esvaziamento (saídas livres em 24h >= 70% do saldo e >= R$ 5.000) -> 2 pontos
             free_balance = context_data.get("free_balance")
             if (
                 context_data.get("event") == "request"
@@ -779,7 +782,135 @@ class PixController:
                     except Exception as e:
                         logger.warning("Falha na avaliação da R22: %s", e)
 
-# ==========================================================
+        # R23: Destinatário recém-aberto (<= 30 dias) a receber pedido de alto valor (>= R$ 5.000) -> 2 pontos
+            if context_data.get("event") == "request" and amount >= 500000:
+                dest_opening_str = input_data.get("destination_account", {}).get("opening_date")
+                
+                if dest_opening_str:
+                    try:
+                        dest_opening = _as_utc_datetime(dest_opening_str)
+                        curr_time = _as_utc_datetime(input_data["transaction_date"])
+                        
+                        # Calcula a diferença em dias
+                        diff_days_dest = (curr_time - dest_opening).days
+                        
+                        # Dispara se a conta de destino tem 30 dias ou menos de vida
+                        if 0 <= diff_days_dest <= 30:
+                            rule_hits.append({
+                                "code": "R23",
+                                "points": 2,
+                                "detail": f"Destinatário recente: A conta de destino tem apenas {diff_days_dest} dias de abertura."
+                            })
+                    except Exception as e:
+                        logger.warning("Falha na avaliação da R23: %s", e)
+        
+        # R24: Destinatário Inédito (Primeira transferência para esta conta) com valor >= R$ 5.000 -> 2 pontos
+            if context_data.get("event") == "request" and amount >= 500000:
+                dest_doc = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
+                
+                if dest_doc:
+                    has_prior_transfer = False
+                    
+                    # Procura no histórico de transações aprovadas se este documento já recebeu algo
+                    for tx in user_history:
+                        tx_payload = getattr(tx, 'payload', {})
+                        if isinstance(tx_payload, str):
+                            try: tx_payload = json.loads(tx_payload)
+                            except: tx_payload = {}
+                            
+                        if isinstance(tx_payload, dict):
+                            past_dest_doc = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                            if past_dest_doc == dest_doc:
+                                has_prior_transfer = True
+                                break
+                    
+                    # Se não encontrou histórico, é um destinatário novo
+                    if not has_prior_transfer:
+                        rule_hits.append({
+                            "code": "R24",
+                            "points": 2,
+                            "detail": f"Maturidade suspeita: Primeira transferência da empresa para o destinatário inédito {dest_doc}."
+                        })
+
+        # R25: Pulverização / Fan-out (>= 3 destinatários distintos em <= 30 min) -> 3 pontos
+            if context_data.get("event") == "request":
+                curr_time = _as_utc_datetime(input_data["transaction_date"])
+                curr_dest = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
+                
+                if curr_dest:
+                    recent_dests = {curr_dest} # O 'set' garante que só contamos CPFs únicos
+                    
+                    # Vamos olhar para os pedidos da empresa nas últimas 24h (já filtrados no topo)
+                    for tx in recent_24h_company:
+                        tx_payload = getattr(tx, 'payload', {})
+                        if isinstance(tx_payload, str):
+                            try: tx_payload = json.loads(tx_payload)
+                            except: tx_payload = {}
+                            
+                        if isinstance(tx_payload, dict):
+                            ctx = tx_payload.get("context", {})
+                            if ctx.get("event") == "request":
+                                try:
+                                    tx_time = _as_utc_datetime(tx.transaction_date)
+                                    diff_mins = (curr_time - tx_time).total_seconds() / 60.0
+                                    
+                                    # Conta apenas os destinatários dos últimos 30 minutos
+                                    if 0 <= diff_mins <= 30:
+                                        tx_dest = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                                        if tx_dest:
+                                            recent_dests.add(tx_dest)
+                                except Exception as e:
+                                    logger.warning("Falha ao ler data na R25: %s", e)
+                                    
+                    # Se espalhou dinheiro por 3 ou mais contas diferentes na última meia hora...
+                    if len(recent_dests) >= 3:
+                        rule_hits.append({
+                            "code": "R25",
+                            "points": 3,
+                            "detail": f"Pulverização detetada: Transferências para {len(recent_dests)} destinatários distintos em menos de 30 minutos."
+                        })
+
+        # R26: Transação de Teste / Ping (Valor <= R$ 2,00 para destinatário inédito) -> 2 pontos
+            #DESISTO
+
+        # R27: Evasão de Fim de Semana (Sábado/Domingo, valor >= R$ 5.000, destinatário inédito) -> 3 pontos
+            if context_data.get("event") == "request" and amount >= 500000:
+                try:
+                    tx_date_utc = _as_utc_datetime(input_data["transaction_date"])
+                    local_time_brt = tx_date_utc + timedelta(hours=-3)
+                    
+                    # Em Python, weekday() devolve 5 para Sábado e 6 para Domingo
+                    if local_time_brt.weekday() in [5, 6]:
+                        dest_doc_r27 = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
+                        
+                        if dest_doc_r27:
+                            has_prior_r27 = False
+                            
+                            # Confirma se é realmente um destinatário novo
+                            for tx in user_history:
+                                tx_payload = getattr(tx, 'payload', {})
+                                if isinstance(tx_payload, str):
+                                    try: tx_payload = json.loads(tx_payload)
+                                    except: tx_payload = {}
+                                    
+                                if isinstance(tx_payload, dict):
+                                    past_dest = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                                    if past_dest == dest_doc_r27:
+                                        has_prior_r27 = True
+                                        break
+                            
+                            # Se nunca enviou dinheiro para aqui e estamos no fim de semana... apanhado!
+                            if not has_prior_r27:
+                                dia_semana = 'Sábado' if local_time_brt.weekday() == 5 else 'Domingo'
+                                rule_hits.append({
+                                    "code": "R27",
+                                    "points": 3,
+                                    "detail": f"Evasão de Fim de Semana: R$ {amount/100:.2f} transferidos num {dia_semana} para destinatário inédito."
+                                })
+                except Exception as e:
+                    logger.warning("Falha na avaliação da R27: %s", e)
+
+        # ==========================================================
         # AGRUPAMENTO E TETOS POR FAMÍLIA (Conforme o RFC do EPP)
         # ==========================================================
         
@@ -788,54 +919,38 @@ class PixController:
         internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]
         session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]] 
         account_behavior_rules = [h for h in rule_hits if h["code"] in ["R20", "R21"]]
-        maturity_rules = [h for h in rule_hits if h["code"] in ["R22", "R23"]]        
         
-        # Filtra as outras regras (É crucial garantir que os códigos acima NÃO estão aqui)
+        # CORREÇÃO: R24 adicionada à maturidade
+        maturity_rules = [h for h in rule_hits if h["code"] in ["R22", "R23", "R24"]]        
+        
+        # Adiciona a R27 à família das anomalias!
+        anomaly_rules = [h for h in rule_hits if h["code"] in ["R25", "R26", "R27"]]
+        
+        # Exclui a R27 do lixo comum
         other_rules = [h for h in rule_hits if h["code"] not in [
             "R1", "R3", "R4", "R28", 
             "R8", "R29", 
             "R13", "R14", "R16", 
             "R17", "R18", "R19", "R32", 
             "R20", "R21", 
-            "R22", "R23"   # <-- R23 aqui!
+            "R22", "R23", "R24",
+            "R25", "R26", "R27" # <-- R27 ignorada aqui
         ]]
 
-        # Aplicação dos limites (min) de cada família
         value_points = min(3, sum(h["points"] for h in value_rules))
         frac_points = min(2, sum(h["points"] for h in frac_rules))
         internal_points = min(3, sum(h["points"] for h in internal_controls_rules))
         session_points = min(4, sum(h["points"] for h in session_rules))
         account_behavior_points = min(3, sum(h["points"] for h in account_behavior_rules))
         maturity_points = min(3, sum(h["points"] for h in maturity_rules))
+        anomaly_points = min(4, sum(h["points"] for h in anomaly_rules)) # O teto da anomalia!
         other_points = sum(h["points"] for h in other_rules)
 
-        # Soma final do Risco
-        total_score = value_points + frac_points + internal_points + session_points + account_behavior_points + maturity_points + other_points
+        # CORREÇÃO: anomaly_points somados no final
+        total_score = value_points + frac_points + internal_points + session_points + account_behavior_points + maturity_points + anomaly_points + other_points
         
         # O código a partir daqui deve ser aquele onde gravas os hits na base de dados (se for o caso)
         # e onde devolves a resposta final ao utilizador (rejected / approved / etc).
-
-        # R23: Destinatário recém-aberto (<= 30 dias) a receber pedido de alto valor (>= R$ 5.000) -> 2 pontos
-        if context_data.get("event") == "request" and amount >= 500000:
-            dest_opening_str = input_data.get("destination_account", {}).get("opening_date")
-            
-            if dest_opening_str:
-                try:
-                    dest_opening = _as_utc_datetime(dest_opening_str)
-                    curr_time = _as_utc_datetime(input_data["transaction_date"])
-                    
-                    # Calcula a diferença em dias
-                    diff_days_dest = (curr_time - dest_opening).days
-                    
-                    # Dispara se a conta de destino tem 30 dias ou menos de vida
-                    if 0 <= diff_days_dest <= 30:
-                        rule_hits.append({
-                            "code": "R23",
-                            "points": 2,
-                            "detail": f"Destinatário recente: A conta de destino tem apenas {diff_days_dest} dias de abertura."
-                        })
-                except Exception as e:
-                    logger.warning("Falha na avaliação da R23: %s", e)
 
         # 5. Mapeamento de Status baseado no Score total acumulado
         # 0-1: approved | 2-4: two_factor_required | >=5: rejected[cite: 20]
