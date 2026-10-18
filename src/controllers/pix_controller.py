@@ -804,138 +804,139 @@ class PixController:
                     except Exception as e:
                         logger.warning("Falha na avaliação da R23: %s", e)
         
-        # R24: Destinatário Inédito (Primeira transferência para esta conta) com valor >= R$ 5.000 -> 2 pontos
+        # R24: Primeiro envio para destinatário inédito acima de R$ 5.000 -> 2 pontos
             if context_data.get("event") == "request" and amount >= 500000:
-                dest_doc = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
-                
+                destination = input_data.get("destination_account", {})
+                owner = destination.get("owner", {}) if isinstance(destination, dict) else {}
+                dest_doc = owner.get("document_number") if isinstance(owner, dict) else None
+
                 if dest_doc:
                     has_prior_transfer = False
-                    
-                    # Procura no histórico de transações aprovadas se este documento já recebeu algo
                     for tx in user_history:
-                        tx_payload = getattr(tx, 'payload', {})
+                        tx_payload = getattr(tx, "payload", {}) or {}
                         if isinstance(tx_payload, str):
-                            try: tx_payload = json.loads(tx_payload)
-                            except: tx_payload = {}
-                            
-                        if isinstance(tx_payload, dict):
-                            past_dest_doc = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
-                            if past_dest_doc == dest_doc:
-                                has_prior_transfer = True
-                                break
-                    
-                    # Se não encontrou histórico, é um destinatário novo
+                            try:
+                                tx_payload = json.loads(tx_payload)
+                            except json.JSONDecodeError as e:
+                                logger.warning("Payload inválido no histórico usado pela regra R24: %s", e)
+                                continue
+                        if not isinstance(tx_payload, dict):
+                            continue
+
+                        past_destination = tx_payload.get("destination_account")
+                        past_owner = past_destination.get("owner", {}) if isinstance(past_destination, dict) else {}
+                        if isinstance(past_owner, dict) and past_owner.get("document_number") == dest_doc:
+                            has_prior_transfer = True
+                            break
+
                     if not has_prior_transfer:
                         rule_hits.append({
                             "code": "R24",
                             "points": 2,
-                            "detail": f"Maturidade suspeita: Primeira transferência da empresa para o destinatário inédito {dest_doc}."
+                            "detail": f"Maturidade suspeita: primeira transferência da empresa para o destinatário inédito {dest_doc}."
                         })
 
-        # R25: Pulverização / Fan-out (>= 3 destinatários distintos em <= 30 min) -> 3 pontos
+        # R25: Pulverização / fan-out (3 destinatários distintos em até 30 min) -> 3 pontos
             if context_data.get("event") == "request":
-                curr_time = _as_utc_datetime(input_data["transaction_date"])
-                curr_dest = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
-                
-                if curr_dest:
-                    recent_dests = {curr_dest} # O 'set' garante que só contamos CPFs únicos
-                    
-                    # Vamos olhar para os pedidos da empresa nas últimas 24h (já filtrados no topo)
-                    for tx in recent_24h_company:
-                        tx_payload = getattr(tx, 'payload', {})
-                        if isinstance(tx_payload, str):
-                            try: tx_payload = json.loads(tx_payload)
-                            except: tx_payload = {}
-                            
-                        if isinstance(tx_payload, dict):
-                            ctx = tx_payload.get("context", {})
-                            if ctx.get("event") == "request":
+                try:
+                    curr_time = _as_utc_datetime(input_data["transaction_date"])
+                except (KeyError, TypeError, ValueError, OverflowError) as e:
+                    logger.warning("Data inválida na avaliação da R25: %s", e)
+                else:
+                    destination = input_data.get("destination_account", {})
+                    owner = destination.get("owner", {}) if isinstance(destination, dict) else {}
+                    curr_dest = owner.get("document_number") if isinstance(owner, dict) else None
+                    if curr_dest:
+                        recent_dests = {curr_dest}
+                        for tx in recent_24h_company:
+                            tx_payload = getattr(tx, "payload", {}) or {}
+                            if isinstance(tx_payload, str):
                                 try:
-                                    tx_time = _as_utc_datetime(tx.transaction_date)
-                                    diff_mins = (curr_time - tx_time).total_seconds() / 60.0
-                                    
-                                    # Conta apenas os destinatários dos últimos 30 minutos
-                                    if 0 <= diff_mins <= 30:
-                                        tx_dest = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
-                                        if tx_dest:
-                                            recent_dests.add(tx_dest)
-                                except Exception as e:
-                                    logger.warning("Falha ao ler data na R25: %s", e)
-                                    
-                    # Se espalhou dinheiro por 3 ou mais contas diferentes na última meia hora...
-                    if len(recent_dests) >= 3:
+                                    tx_payload = json.loads(tx_payload)
+                                except json.JSONDecodeError as e:
+                                    logger.warning("Payload inválido no histórico usado pela regra R25: %s", e)
+                                    continue
+                            if not isinstance(tx_payload, dict):
+                                continue
+
+                            tx_context = tx_payload.get("context")
+                            if not isinstance(tx_context, dict) or tx_context.get("event") != "request":
+                                continue
+                            try:
+                                tx_time = _as_utc_datetime(tx.transaction_date)
+                            except (AttributeError, TypeError, ValueError, OverflowError) as e:
+                                logger.warning("Data inválida no histórico usado pela regra R25: %s", e)
+                                continue
+
+                            diff_mins = (curr_time - tx_time).total_seconds() / 60.0
+                            if 0 <= diff_mins <= 30:
+                                tx_destination = tx_payload.get("destination_account")
+                                tx_owner = tx_destination.get("owner", {}) if isinstance(tx_destination, dict) else {}
+                                tx_dest = tx_owner.get("document_number") if isinstance(tx_owner, dict) else None
+                                if tx_dest:
+                                    recent_dests.add(tx_dest)
+
+                        if len(recent_dests) >= 3:
+                            rule_hits.append({
+                                "code": "R25",
+                                "points": 3,
+                                "detail": f"Pulverização detetada: transferências para {len(recent_dests)} destinatários distintos em até 30 minutos."
+                            })
+
+        # R26: Ping de valor até R$ 2,00 para destinatário inédito -> 2 pontos
+            if context_data.get("event") == "request" and amount <= 200:
+                destination = input_data.get("destination_account", {})
+                owner = destination.get("owner", {}) if isinstance(destination, dict) else {}
+                dest_doc_r26 = owner.get("document_number") if isinstance(owner, dict) else None
+
+                if dest_doc_r26:
+                    has_prior_r26 = False
+                    for tx in user_history:
+                        tx_payload = getattr(tx, "payload", {}) or {}
+                        if isinstance(tx_payload, str):
+                            try:
+                                tx_payload = json.loads(tx_payload)
+                            except json.JSONDecodeError as e:
+                                logger.warning("Payload inválido no histórico usado pela regra R26: %s", e)
+                                continue
+                        if not isinstance(tx_payload, dict):
+                            continue
+
+                        past_destination = tx_payload.get("destination_account")
+                        past_owner = past_destination.get("owner", {}) if isinstance(past_destination, dict) else {}
+                        if isinstance(past_owner, dict) and past_owner.get("document_number") == dest_doc_r26:
+                            has_prior_r26 = True
+                            break
+
+                    if not has_prior_r26:
                         rule_hits.append({
-                            "code": "R25",
-                            "points": 3,
-                            "detail": f"Pulverização detetada: Transferências para {len(recent_dests)} destinatários distintos em menos de 30 minutos."
+                            "code": "R26",
+                            "points": 2,
+                            "detail": f"Teste de invasão (ping): envio de valor irrisório (R$ {amount/100:.2f}) para destinatário inédito."
                         })
 
-        # R26: Transação de Teste / Ping (Valor <= R$ 2,00 para destinatário inédito) -> 2 pontos
-            #DESISTO
+        # R27: Evasão de fim de semana para destinatário inédito -> 3 pontos
+            # DESISTO
 
-        # R27: Evasão de Fim de Semana (Sábado/Domingo, valor >= R$ 5.000, destinatário inédito) -> 3 pontos
-            if context_data.get("event") == "request" and amount >= 500000:
-                try:
-                    tx_date_utc = _as_utc_datetime(input_data["transaction_date"])
-                    local_time_brt = tx_date_utc + timedelta(hours=-3)
-                    
-                    # Em Python, weekday() devolve 5 para Sábado e 6 para Domingo
-                    if local_time_brt.weekday() in [5, 6]:
-                        dest_doc_r27 = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
-                        
-                        if dest_doc_r27:
-                            has_prior_r27 = False
-                            
-                            # Confirma se é realmente um destinatário novo
-                            for tx in user_history:
-                                tx_payload = getattr(tx, 'payload', {})
-                                if isinstance(tx_payload, str):
-                                    try: tx_payload = json.loads(tx_payload)
-                                    except: tx_payload = {}
-                                    
-                                if isinstance(tx_payload, dict):
-                                    past_dest = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
-                                    if past_dest == dest_doc_r27:
-                                        has_prior_r27 = True
-                                        break
-                            
-                            # Se nunca enviou dinheiro para aqui e estamos no fim de semana... apanhado!
-                            if not has_prior_r27:
-                                dia_semana = 'Sábado' if local_time_brt.weekday() == 5 else 'Domingo'
-                                rule_hits.append({
-                                    "code": "R27",
-                                    "points": 3,
-                                    "detail": f"Evasão de Fim de Semana: R$ {amount/100:.2f} transferidos num {dia_semana} para destinatário inédito."
-                                })
-                except Exception as e:
-                    logger.warning("Falha na avaliação da R27: %s", e)
-
-        # ==========================================================
-        # AGRUPAMENTO E TETOS POR FAMÍLIA (Conforme o RFC do EPP)
-        # ==========================================================
-        
+        # Agrupamento e tetos por família
         value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28"]]
         frac_rules = [h for h in rule_hits if h["code"] in ["R8", "R29"]]
         internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]
-        session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]] 
+        session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]]
         account_behavior_rules = [h for h in rule_hits if h["code"] in ["R20", "R21"]]
-        
-        # CORREÇÃO: R24 adicionada à maturidade
-        maturity_rules = [h for h in rule_hits if h["code"] in ["R22", "R23", "R24"]]        
-        
-        # Adiciona a R27 à família das anomalias!
+        maturity_rules = [h for h in rule_hits if h["code"] in ["R22", "R23", "R24"]]
         anomaly_rules = [h for h in rule_hits if h["code"] in ["R25", "R26", "R27"]]
-        
-        # Exclui a R27 do lixo comum
-        other_rules = [h for h in rule_hits if h["code"] not in [
-            "R1", "R3", "R4", "R28", 
-            "R8", "R29", 
-            "R13", "R14", "R16", 
-            "R17", "R18", "R19", "R32", 
-            "R20", "R21", 
+
+        grouped_rule_codes = {
+            "R1", "R3", "R4", "R28",
+            "R8", "R29",
+            "R13", "R14", "R16",
+            "R17", "R18", "R19", "R32",
+            "R20", "R21",
             "R22", "R23", "R24",
-            "R25", "R26", "R27" # <-- R27 ignorada aqui
-        ]]
+            "R25", "R26", "R27",
+        }
+        other_rules = [h for h in rule_hits if h["code"] not in grouped_rule_codes]
 
         value_points = min(3, sum(h["points"] for h in value_rules))
         frac_points = min(2, sum(h["points"] for h in frac_rules))
@@ -943,11 +944,19 @@ class PixController:
         session_points = min(4, sum(h["points"] for h in session_rules))
         account_behavior_points = min(3, sum(h["points"] for h in account_behavior_rules))
         maturity_points = min(3, sum(h["points"] for h in maturity_rules))
-        anomaly_points = min(4, sum(h["points"] for h in anomaly_rules)) # O teto da anomalia!
+        anomaly_points = min(4, sum(h["points"] for h in anomaly_rules))
         other_points = sum(h["points"] for h in other_rules)
 
-        # CORREÇÃO: anomaly_points somados no final
-        total_score = value_points + frac_points + internal_points + session_points + account_behavior_points + maturity_points + anomaly_points + other_points
+        total_score = (
+            value_points
+            + frac_points
+            + internal_points
+            + session_points
+            + account_behavior_points
+            + maturity_points
+            + anomaly_points
+            + other_points
+        )
         
         # O código a partir daqui deve ser aquele onde gravas os hits na base de dados (se for o caso)
         # e onde devolves a resposta final ao utilizador (rejected / approved / etc).
