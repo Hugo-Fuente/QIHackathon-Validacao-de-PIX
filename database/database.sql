@@ -22,6 +22,8 @@ INSERT INTO fraud_rules (code, name, default_points) VALUES
 ('R12', 'Dispositivo Compartilhado', 2),
 ('R13', 'Horário Fora do Padrão (Time-fence)', 3),
 ('R14', 'Cerca Virtual (Geofence)', 5),
+('R28', 'Valor colado no piso', 2),
+('R29', 'Fracionamento por documento', 2),
 ('R_VELOCITY', 'Velocity por remetente', 3),
 ('R_CRITICAL', 'Bloqueio por rajada crítica', 5);
 

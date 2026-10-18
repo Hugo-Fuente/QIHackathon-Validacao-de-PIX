@@ -333,19 +333,153 @@ class PixController:
                 })
         except (AttributeError, TypeError, ValueError, OverflowError) as e:
             logger.warning("Não foi possível avaliar o horário na regra R12: %s", e)
+
+        # R28: Valor colado no piso (>= 3 Pix em 24h, entre R$ 4.500 e R$ 4.999,99) -> 2 pontos
+        if 450000 <= amount <= 499999:
+            # 1440 minutos = 24 horas
+            recent_24h = self.repository.get_transactions_in_minutes(session, source_doc, minutes=1440)
+            
+            # Filtra apenas os Pix da janela que também estão "colados no piso"
+            # O getattr extrai o valor real e evita que o Pylance confunda com a Column do SQLAlchemy
+            floor_hugging_txs = [tx for tx in recent_24h if 450000 <= getattr(tx, 'amount', 0) <= 499999]
+            
+            # Conta com o atual
+            if len(floor_hugging_txs) + 1 >= 3:
+                rule_hits.append({
+                    "code": "R28",
+                    "points": 2,
+                    "detail": f"Valor colado no piso: {len(floor_hugging_txs) + 1} Pix entre R$ 4.500 e R$ 4.999 em 24h."
+                })
+
+        # R29: Fracionamento por documento (>= 4 Pix p/ mesmo CPF/CNPJ destino em 60 min, soma >= R$ 5.000) -> 2 pontos
+        dest_doc = input_data["destination_account"]["owner"]["document_number"]
+        recent_60m = self.repository.get_transactions_in_minutes(session, source_doc, minutes=60)
         
-        # O RFC agrupa R1, R3, R4 e R28 na Família de Valor, com teto de 3 pontos.
-        # Atualmente só R1, R3 e R4 estão ativas; o teto evita pontuação excessiva
-        # quando várias regras de montante disparam na mesma transação.
+        txs_same_dest_doc_60m = []
+        for tx in recent_60m:
+            payload = getattr(tx, 'payload', {})
+            if isinstance(payload, str):
+                import json
+                try: payload = json.loads(payload)
+                except: payload = {}
+            
+            if isinstance(payload, dict):
+                doc = payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                if doc == dest_doc:
+                    txs_same_dest_doc_60m.append(tx)
+
+        if len(txs_same_dest_doc_60m) + 1 >= 4:
+            sum_r29 = sum(getattr(tx, 'amount', 0) for tx in txs_same_dest_doc_60m) + amount
+            if sum_r29 >= 500000:
+                # Verifica se é recorrente: tem de ter >= 3 Pix para este doc ANTES desta janela de 60 min
+                recurrent_count = 0
+                for tx in user_history:
+                    # Se está no histórico mas não nos últimos 60 min, então é um Pix antigo (anterior à janela)
+                    if tx not in recent_60m:
+                        payload = getattr(tx, 'payload', {})
+                        if isinstance(payload, str):
+                            import json
+                            try: payload = json.loads(payload)
+                            except: payload = {}
+                        if isinstance(payload, dict):
+                            doc = payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                            if doc == dest_doc:
+                                recurrent_count += 1
+                                
+                if recurrent_count < 3:
+                    rule_hits.append({
+                        "code": "R29",
+                        "points": 2,
+                        "detail": f"Fracionamento por documento: {len(txs_same_dest_doc_60m) + 1} Pix p/ o mesmo destinatário (contas diferentes) somando R$ {sum_r29/100:.2f} em 60 min."
+                    })
+
+        # ==========================================
+        # CONTEXTO EPP (R13 - R27, R30 - R32)
+        # ==========================================
+        context_data = input_data.get("context")
+
+        if context_data:
+            author_id = context_data.get("author_id")
+            author_limit = context_data.get("author_limit")
+            approval_trigger = context_data.get("approval_trigger")
+            limits = [
+                limit
+                for limit in (author_limit, approval_trigger)
+                if isinstance(limit, (int, float)) and not isinstance(limit, bool)
+            ]
+
+            if limits and author_id:
+                min_limit = min(limits)
+                lower_bound = int(min_limit * 0.90)
+                upper_bound = int(min_limit * 0.999)
+
+                if lower_bound <= amount <= upper_bound:
+                    recent_24h_company = self.repository.get_transactions_in_minutes(
+                        session,
+                        source_doc,
+                        minutes=1440
+                    )
+                    hugging_author_txs = []
+                    for tx in recent_24h_company:
+                        tx_payload = getattr(tx, "payload", {}) or {}
+                        if isinstance(tx_payload, str):
+                            try:
+                                tx_payload = json.loads(tx_payload)
+                            except json.JSONDecodeError:
+                                logger.warning("Payload inválido em JSON no histórico usado pela regra R13.")
+                                continue
+
+                        if not isinstance(tx_payload, dict):
+                            continue
+
+                        tx_context = tx_payload.get("context")
+                        if not isinstance(tx_context, dict) or tx_context.get("author_id") != author_id:
+                            continue
+
+                        tx_amount = getattr(tx, "amount", 0)
+                        if lower_bound <= tx_amount <= upper_bound:
+                            hugging_author_txs.append(tx)
+
+                    if len(hugging_author_txs) + 1 >= 3:
+                        recurrent_company_count = 0
+                        for tx in user_history:
+                            if tx in recent_24h_company:
+                                continue
+
+                            tx_payload = getattr(tx, "payload", {}) or {}
+                            if isinstance(tx_payload, str):
+                                try:
+                                    tx_payload = json.loads(tx_payload)
+                                except json.JSONDecodeError:
+                                    logger.warning("Payload inválido em JSON no histórico de recorrência da regra R13.")
+                                    continue
+
+                            if not isinstance(tx_payload, dict):
+                                continue
+
+                            destination = tx_payload.get("destination_account")
+                            owner = destination.get("owner") if isinstance(destination, dict) else None
+                            if isinstance(owner, dict) and owner.get("document_number") == dest_doc:
+                                recurrent_company_count += 1
+
+                        if recurrent_company_count < 3:
+                            rule_hits.append({
+                                "code": "R13",
+                                "points": 2,
+                                "detail": f"Teste de limite EPP: {len(hugging_author_txs) + 1} pedidos colados no teto de R$ {min_limit/100:.2f}."
+                            })
+
+        # Agrupamento e Tetos por Família (Conforme RFC)
         value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28"]]
-        other_rules = [h for h in rule_hits if h["code"] not in ["R1", "R3", "R4", "R28"]]
+        frac_rules = [h for h in rule_hits if h["code"] in ["R8", "R29"]]
+        internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]
+        other_rules = [h for h in rule_hits if h["code"] not in ["R1", "R3", "R4", "R28", "R8", "R29", "R13", "R14", "R16"]]
 
-        value_points = sum(h["points"] for h in value_rules)
-        if value_points > 3:
-            value_points = 3
-
+        value_points = min(3, sum(h["points"] for h in value_rules))
+        frac_points = min(2, sum(h["points"] for h in frac_rules))
+        internal_points = min(3, sum(h["points"] for h in internal_controls_rules))
         other_points = sum(h["points"] for h in other_rules)
-        total_score = value_points + other_points
+        total_score = value_points + frac_points + internal_points + other_points
 
         # 5. Mapeamento de Status baseado no Score total acumulado
         # 0-1: approved | 2-4: two_factor_required | >=5: rejected[cite: 20]

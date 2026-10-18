@@ -44,6 +44,7 @@ class PixTransactionInput(BaseModel):
     source_account: SourceAccountSchema
     destination_account: DestinationAccountSchema
     source: SourceSchema
+    context: Optional[Dict[str, Any]] = None
 
 # Este é o Schema que devolvemos como resposta (O payload de Saída do PDF)
 class PixTransactionOutput(BaseModel):
