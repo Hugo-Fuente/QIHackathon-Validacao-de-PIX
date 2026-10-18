@@ -28,25 +28,23 @@ def resolve_string(value: str, scenario_id: str, run_id: str, aliases: dict) -> 
             if key not in aliases:
                 aliases[key] = datetime.now(timezone.utc).replace(microsecond=0)
             return aliases[key].isoformat().replace("+00:00", "Z")
-        if token.startswith("now-"):
-            found = re.fullmatch(r"now-(\d+)([dhms])", token)
-            if not found:
-                raise ValueError(f"Invalid time placeholder: {token}")
+        found = re.fullmatch(r"now([+-]\d+)([dhms])", token)
+        if found:
             key = ("time", token)
             if key in aliases:
                 return aliases[key].isoformat().replace("+00:00", "Z")
             amount, unit = int(found.group(1)), found.group(2)
             delta = {
-                "d": timedelta(days=amount),
-                "h": timedelta(hours=amount),
-                "m": timedelta(minutes=amount),
-                "s": timedelta(seconds=amount),
+                "d": timedelta(days=abs(amount)),
+                "h": timedelta(hours=abs(amount)),
+                "m": timedelta(minutes=abs(amount)),
+                "s": timedelta(seconds=abs(amount)),
             }[unit]
             anchor = aliases.setdefault(("time", "now"), datetime.now(timezone.utc).replace(microsecond=0))
-            aliases[key] = anchor - delta
+            aliases[key] = anchor + delta if amount > 0 else anchor - delta
             return aliases[key].isoformat().replace("+00:00", "Z")
         if token.startswith("brt:"):
-            found = re.fullmatch(r"brt:(\d{2}):(\d{2})(?:-(\d+)([dh]))?", token)
+            found = re.fullmatch(r"brt:(\d{2}):(\d{2})(?:([+-]\d+)([smhd]))?", token)
             if not found:
                 raise ValueError(f"Invalid BRT placeholder: {token}")
             hour, minute, amount, unit = found.groups()
@@ -55,7 +53,16 @@ def resolve_string(value: str, scenario_id: str, run_id: str, aliases: dict) -> 
             ).astimezone(ZoneInfo("America/Sao_Paulo"))
             result = now_brt.replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
             if amount:
-                result -= timedelta(days=int(amount)) if unit == "d" else timedelta(hours=int(amount))
+                magnitude = abs(int(amount))
+                delta = {
+                    "d": timedelta(days=magnitude),
+                    "h": timedelta(hours=magnitude),
+                    "m": timedelta(minutes=magnitude),
+                    "s": timedelta(seconds=magnitude),
+                }[unit]
+                result += delta if int(amount) > 0 else -delta
+            elif result > now_brt:
+                result -= timedelta(days=1)
             return result.isoformat()
         if ":" not in token:
             raise ValueError(f"Unknown placeholder: {token}")
@@ -97,7 +104,7 @@ def parse_time(value: str) -> datetime:
 def expand_step(step: dict, scenario_id: str, run_id: str, aliases: dict) -> list[dict]:
     request = resolve(step["request"], scenario_id, run_id, aliases)
     if "repeat" not in step:
-        request.setdefault("transaction_date", datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"))
+        request.setdefault("transaction_date", resolve_string("{{now}}", scenario_id, run_id, aliases))
         return [{"name": step.get("name", "step"), "request": request, "expect": step.get("expect")}]
 
     count = int(step["repeat"])
@@ -115,8 +122,11 @@ def expand_step(step: dict, scenario_id: str, run_id: str, aliases: dict) -> lis
 
 
 def send_request(base_url: str, token: str, payload: dict) -> tuple[int, dict]:
+    endpoint = base_url.rstrip("/")
+    if not endpoint.endswith("/pix/transaction"):
+        endpoint += "/pix/transaction"
     request = Request(
-        f"{base_url.rstrip('/')}/pix/transaction",
+        endpoint,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "INTERNAL-TOKEN": token},
         method="POST",
@@ -147,6 +157,8 @@ def check_expectation(expected: dict, status: int, body: dict, prior: list) -> l
     errors = []
     if "http" in expected and status != expected["http"]:
         errors.append(f"HTTP {status}, expected {expected['http']}")
+    if expected.get("http", status) not in (200, 201):
+        return errors
     if "status" in expected and body.get("status") != expected["status"]:
         errors.append(f"status {body.get('status')}, expected {expected['status']}")
     metadata = body.get("metadata") or {}
@@ -164,7 +176,14 @@ def check_expectation(expected: dict, status: int, body: dict, prior: list) -> l
     return errors
 
 
-def run_scenario(scenario: dict, base_url: str, token: str, run_id: str) -> list[str]:
+def run_scenario(
+    scenario: dict,
+    base_url: str,
+    token: str,
+    run_id: str,
+    only: set[str] | None = None,
+    skip_requires: bool = False,
+) -> list[str]:
     aliases = {}
     responses = []
     failures = []
@@ -191,22 +210,44 @@ def run_scenario(scenario: dict, base_url: str, token: str, run_id: str) -> list
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("json_file", help="Path to a pix_api_tests.json file")
+    parser.add_argument("json_file", nargs="?", help="Path to a pix_api_tests.json file")
+    parser.add_argument("--file", dest="file_option", help="Path to a pix_api_tests.json file")
     parser.add_argument("--base-url", default=os.getenv("API_BASE_URL", "http://localhost:3000"))
+    parser.add_argument("--url", help="Full transaction endpoint URL (alternative to --base-url)")
     parser.add_argument("--token", default=os.getenv("INTERNAL_TOKEN", "default_token"))
+    parser.add_argument("--only", default="", help="Scenario ids or rules, comma-separated")
+    parser.add_argument("--skip-requires", action="store_true", help="Skip scenarios with unmet repository requirements")
     args = parser.parse_args()
 
-    with open(args.json_file, encoding="utf-8") as source:
+    json_file = args.file_option or args.json_file or "pix_api_tests.json"
+    with open(json_file, encoding="utf-8") as source:
         scenarios = json.load(source)["scenarios"]
+    only = {value.strip() for value in args.only.split(",") if value.strip()} or None
     run_id = uuid.uuid4().hex[:12]
     failures_by_scenario = []
+    skipped = 0
+    selected = 0
+    configured_url = args.base_url.rstrip("/")
+    base_url = args.url or (
+        configured_url
+        if configured_url.endswith("/pix/transaction")
+        else f"{configured_url}/pix/transaction"
+    )
     for scenario in scenarios:
-        failures = run_scenario(scenario, args.base_url, args.token, run_id)
+        if only and scenario["id"] not in only and scenario.get("rule") not in only:
+            continue
+        selected += 1
+        if args.skip_requires and scenario.get("requires"):
+            skipped += 1
+            print(f"SKIP {scenario['id']:<22} requires {', '.join(scenario['requires'])}")
+            continue
+        failures = run_scenario(scenario, base_url, args.token, run_id, only, args.skip_requires)
         if failures:
             failures_by_scenario.append((scenario["id"], failures))
 
-    passed = len(scenarios) - len(failures_by_scenario)
-    print(f"Scenarios: {passed} passed, {len(failures_by_scenario)} failed, {len(scenarios)} total")
+    passed = selected - len(failures_by_scenario) - skipped
+    total = selected
+    print(f"Scenarios: {passed} passed, {len(failures_by_scenario)} failed, {skipped} skipped, {total} selected")
     for scenario_id, failures in failures_by_scenario:
         print(f"\n[{scenario_id}]")
         for failure in failures:

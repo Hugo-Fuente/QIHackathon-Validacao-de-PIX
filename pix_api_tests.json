@@ -1,0 +1,4855 @@
+{
+  "description": "Cenários da API antifraude Pix (RFC v7): um por regra, mais C1, legítimos e contrato. Placeholders e formato dos steps estão documentados em run_api_tests.py.",
+  "scenarios": [
+    {
+      "id": "R1",
+      "rule": "R1",
+      "title": "Limite: R$ 5.000 sem perfil vale 2 pontos (2FA)",
+      "steps": [
+        {
+          "name": "pix de R$ 5.000",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 500000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R1"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R1_habitual",
+      "rule": "R1",
+      "title": "Limite: aluguel mensal recorrente (valor habitual) vale 1 e aprova",
+      "steps": [
+        {
+          "name": "aluguel -90d",
+          "request": {
+            "id": "{{id:a1}}",
+            "amount": 600000,
+            "transaction_date": "{{now-90d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel -60d",
+          "request": {
+            "id": "{{id:a2}}",
+            "amount": 600000,
+            "transaction_date": "{{now-60d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel -30d",
+          "request": {
+            "id": "{{id:a3}}",
+            "amount": 600000,
+            "transaction_date": "{{now-30d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel -4d",
+          "request": {
+            "id": "{{id:a4}}",
+            "amount": 600000,
+            "transaction_date": "{{now-4d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel do mês",
+          "request": {
+            "id": "{{id:a5}}",
+            "amount": 600000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R1"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R1_salto",
+      "rule": "R1",
+      "title": "Limite: reajuste de 30% sai do valor habitual e volta a valer 2",
+      "steps": [
+        {
+          "name": "aluguel -90d",
+          "request": {
+            "id": "{{id:a1}}",
+            "amount": 600000,
+            "transaction_date": "{{now-90d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel -60d",
+          "request": {
+            "id": "{{id:a2}}",
+            "amount": 600000,
+            "transaction_date": "{{now-60d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel -30d",
+          "request": {
+            "id": "{{id:a3}}",
+            "amount": 600000,
+            "transaction_date": "{{now-30d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel -4d",
+          "request": {
+            "id": "{{id:a4}}",
+            "amount": 600000,
+            "transaction_date": "{{now-4d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "aluguel reajustado em 30%",
+          "request": {
+            "id": "{{id:a5}}",
+            "amount": 780000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R1"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R1_L_relativo",
+      "rule": "R1",
+      "title": "Limite relativo: mediana R$ 4.000 sobe L para R$ 12.000; R$ 9.000 não pontua R1",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 12,
+          "from": "{{now-40d}}",
+          "to": "{{now-2d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 400000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:old}}",
+              "owner": {
+                "document_number": "{{doc:old}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "R$ 9.000 a destino novo",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 900000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R5"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R1_L_relativo_sessao",
+      "rule": "R1",
+      "title": "Limite relativo não abre a porta: aparelho novo + destino novo em R$ 11.500",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 12,
+          "from": "{{now-40d}}",
+          "to": "{{now-2d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 400000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:old}}",
+              "owner": {
+                "document_number": "{{doc:old}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "R$ 11.500, aparelho novo",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 1150000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-novo}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R5",
+              "R7"
+            ],
+            "score": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "R2",
+      "rule": "R2",
+      "title": "Velocity: 5 Pix em 60 s",
+      "steps": [
+        {
+          "name": "pix 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 10000,
+            "transaction_date": "{{now-50s}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 10000,
+            "transaction_date": "{{now-40s}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 10000,
+            "transaction_date": "{{now-30s}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d3}}",
+              "owner": {
+                "document_number": "{{doc:d3}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 4",
+          "request": {
+            "id": "{{id:p4}}",
+            "amount": 10000,
+            "transaction_date": "{{now-20s}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d4}}",
+              "owner": {
+                "document_number": "{{doc:d4}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 5",
+          "request": {
+            "id": "{{id:p5}}",
+            "amount": 10000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d5}}",
+              "owner": {
+                "document_number": "{{doc:d5}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R2"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R3",
+      "rule": "R3",
+      "title": "Montante acumulado: 3 Pix de R$ 4.000 em 10 min, soma R$ 12.000 >= 2 x L (R33 soma por ser pagador frio)",
+      "steps": [
+        {
+          "name": "pix 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 400000,
+            "transaction_date": "{{now-8m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 400000,
+            "transaction_date": "{{now-4m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 400000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d3}}",
+              "owner": {
+                "document_number": "{{doc:d3}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R3",
+              "R33"
+            ],
+            "score": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "R3_L_relativo",
+      "rule": "R3",
+      "title": "Montante: perfil de mediana R$ 8.000 paga dois Pix de R$ 9.000 sem disparar R3",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 12,
+          "from": "{{now-40d}}",
+          "to": "{{now-2d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 800000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:old}}",
+              "owner": {
+                "document_number": "{{doc:old}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "fornecedor A",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 900000,
+            "transaction_date": "{{now-5m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:fa}}",
+              "owner": {
+                "document_number": "{{doc:fa}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "fornecedor B",
+          "request": {
+            "id": "{{id:b}}",
+            "amount": 900000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:fb}}",
+              "owner": {
+                "document_number": "{{doc:fb}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R5"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R4",
+      "rule": "R4",
+      "title": "Desvio de perfil: R$ 1.500 contra mediana de R$ 200",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 6,
+          "from": "{{now-10d}}",
+          "to": "{{now-3d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 20000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix de R$ 1.500",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 150000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R4"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R5",
+      "rule": "R5",
+      "title": "Contraparte nova: R$ 1.200 para destino inédito, com histórico",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 3,
+          "from": "{{now-10d}}",
+          "to": "{{now-3d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 20000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix a destino novo",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 120000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:novo}}",
+              "owner": {
+                "document_number": "{{doc:novo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R5"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R6",
+      "rule": "R6",
+      "title": "Destino recém-aberto (10 dias) com R$ 1.500",
+      "steps": [
+        {
+          "name": "pix",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 150000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "{{now-10d}}"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R6"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R7",
+      "rule": "R7",
+      "title": "Dispositivo novo com R$ 600 e histórico",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 4,
+          "from": "{{now-10d}}",
+          "to": "{{now-4d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 20000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix de aparelho novo",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 60000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-novo}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R7"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R8",
+      "rule": "R8",
+      "title": "Fracionamento: 3 Pix de R$ 900 para a mesma conta em 5 min",
+      "steps": [
+        {
+          "name": "pix 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 90000,
+            "transaction_date": "{{now-4m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 90000,
+            "transaction_date": "{{now-2m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 90000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R8"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R9",
+      "rule": "R9",
+      "title": "Destino concentrador: 5 pagadores, R$ 12.500 em 60 min (o R33 soma por serem pagadores frios)",
+      "steps": [
+        {
+          "name": "pagador 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 250000,
+            "transaction_date": "{{now-50m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p1}}",
+              "owner": {
+                "document_number": "{{doc:p1}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-p1}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pagador 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 250000,
+            "transaction_date": "{{now-40m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p2}}",
+              "owner": {
+                "document_number": "{{doc:p2}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-p2}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pagador 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 250000,
+            "transaction_date": "{{now-30m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p3}}",
+              "owner": {
+                "document_number": "{{doc:p3}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-p3}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pagador 4",
+          "request": {
+            "id": "{{id:p4}}",
+            "amount": 250000,
+            "transaction_date": "{{now-20m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p4}}",
+              "owner": {
+                "document_number": "{{doc:p4}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-p4}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pagador 5",
+          "request": {
+            "id": "{{id:p5}}",
+            "amount": 250000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p5}}",
+              "owner": {
+                "document_number": "{{doc:p5}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-p5}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R9",
+              "R33"
+            ],
+            "score": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "R10",
+      "rule": "R10",
+      "title": "Pagador recente (10 dias), primeiro Pix de R$ 4.000 sem histórico vale 2",
+      "steps": [
+        {
+          "name": "pix",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 400000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "{{now-10d}}"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R10"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R11",
+      "rule": "R11",
+      "title": "Deslocamento impossível: Rio -> Manaus em 30 min",
+      "steps": [
+        {
+          "name": "pix no Rio",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 20000,
+            "transaction_date": "{{now-30m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1",
+              "geolocation": {
+                "latitude": -22.9068,
+                "longitude": -43.1729
+              }
+            }
+          }
+        },
+        {
+          "name": "pix em Manaus",
+          "request": {
+            "id": "{{id:b}}",
+            "amount": 20000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1",
+              "geolocation": {
+                "latitude": -3.119,
+                "longitude": -60.0217
+              }
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R11"
+            ],
+            "score": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "R12",
+      "rule": "R12",
+      "title": "Dispositivo compartilhado: 3 documentos no mesmo aparelho em 24 h",
+      "steps": [
+        {
+          "name": "pagador 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 20000,
+            "transaction_date": "{{now-3h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p1}}",
+              "owner": {
+                "document_number": "{{doc:p1}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-compartilhado}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pagador 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 20000,
+            "transaction_date": "{{now-2h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p2}}",
+              "owner": {
+                "document_number": "{{doc:p2}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-compartilhado}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pagador 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 20000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_p3}}",
+              "owner": {
+                "document_number": "{{doc:p3}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d3}}",
+              "owner": {
+                "document_number": "{{doc:d3}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-compartilhado}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R12"
+            ],
+            "score": 2
+          }
+        }
+      ],
+      "requires": [
+        "PixRepository.get_transactions_by_device"
+      ]
+    },
+    {
+      "id": "R28",
+      "rule": "R28",
+      "title": "Valor colado no piso: 3 Pix de R$ 4.600 em 24 h (R33 soma por ser pagador frio)",
+      "steps": [
+        {
+          "name": "pix 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 460000,
+            "transaction_date": "{{now-5h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 460000,
+            "transaction_date": "{{now-3h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 460000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d3}}",
+              "owner": {
+                "document_number": "{{doc:d3}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R28",
+              "R33"
+            ],
+            "score": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "R29",
+      "rule": "R29",
+      "title": "Fracionamento por documento: 4 Pix de R$ 1.500 em contas diferentes do mesmo CPF em 60 min",
+      "steps": [
+        {
+          "name": "pix 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 150000,
+            "transaction_date": "{{now-45m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:c1}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 150000,
+            "transaction_date": "{{now-30m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:c2}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 150000,
+            "transaction_date": "{{now-15m}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:c3}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          }
+        },
+        {
+          "name": "pix 4",
+          "request": {
+            "id": "{{id:p4}}",
+            "amount": 150000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:c4}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R5",
+              "R29"
+            ],
+            "score": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "R33",
+      "rule": "R33",
+      "title": "Início frio: conta antiga sem histórico paga R$ 3.000",
+      "steps": [
+        {
+          "name": "R$ 3.000",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R33"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R33_R1",
+      "rule": "R33",
+      "title": "Início frio: o mesmo cliente com R$ 6.000 cai no R1",
+      "steps": [
+        {
+          "name": "R$ 6.000",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 600000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R1"
+            ],
+            "score": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "LEG_pix_pequeno",
+      "rule": "LEG",
+      "title": "Legítimo: Pix de R$ 50 sem histórico",
+      "steps": [
+        {
+          "name": "pix",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 5000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [],
+            "score": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "R13",
+      "rule": "R13",
+      "title": "Valor colado no limite do sócio: 3 pedidos de R$ 3.800 com limite de R$ 4.000",
+      "steps": [
+        {
+          "name": "pedido 1",
+          "request": {
+            "id": "{{id:p1}}",
+            "amount": 380000,
+            "transaction_date": "{{now-6h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "author_limit": 400000,
+              "approval_trigger": 400000
+            }
+          }
+        },
+        {
+          "name": "pedido 2",
+          "request": {
+            "id": "{{id:p2}}",
+            "amount": 380000,
+            "transaction_date": "{{now-3h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "author_limit": 400000,
+              "approval_trigger": 400000
+            }
+          }
+        },
+        {
+          "name": "pedido 3",
+          "request": {
+            "id": "{{id:p3}}",
+            "amount": 380000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d3}}",
+              "owner": {
+                "document_number": "{{doc:d3}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "author_limit": 400000,
+              "approval_trigger": 400000
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R13"
+            ],
+            "score": 2,
+            "actions": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "R14",
+      "rule": "R14",
+      "title": "Recriação após recusa: mesmo destino e ~94% do valor recusado por outro sócio",
+      "steps": [
+        {
+          "name": "pedido recriado",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 450000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "refused_requests_24h": [
+                {
+                  "amount": 480000,
+                  "destination_document": "{{doc:dest}}",
+                  "author_id": "socio-a",
+                  "refused_by": "socio-b",
+                  "refused_at": "{{now-2h}}"
+                }
+              ]
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R14"
+            ],
+            "score": 2,
+            "actions": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "R15",
+      "rule": "R15",
+      "title": "Aprovação disfarçada: voto no mesmo aparelho do autor do pedido",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:req}}",
+            "amount": 450000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_hash": "hash-pedido"
+            }
+          },
+          "expect": {
+            "status": "approved"
+          }
+        },
+        {
+          "name": "voto do mesmo aparelho",
+          "request": {
+            "id": "{{id:vote}}",
+            "amount": 450000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "vote",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-b",
+              "account_activated_at": "{{now-200d}}",
+              "request_id": "{{id:req}}",
+              "request_hash": "hash-pedido"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R15"
+            ],
+            "score": 3,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R16",
+      "rule": "R16",
+      "title": "Afrouxamento de controle 6 h antes do uso",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "control_loosened_at": "{{now-6h}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R16"
+            ],
+            "score": 3,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R17",
+      "rule": "R17",
+      "title": "Dispositivo novo do sócio com R$ 600",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 4,
+          "from": "{{now-10d}}",
+          "to": "{{now-3d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 60000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "pedido de aparelho novo",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 60000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-novo}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R17"
+            ],
+            "score": 2,
+            "actions": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "R18",
+      "rule": "R18",
+      "title": "Deslocamento do sócio: São Paulo -> Manaus em 2 h",
+      "steps": [
+        {
+          "name": "pedido em São Paulo",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 80000,
+            "transaction_date": "{{now-2h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1",
+              "geolocation": {
+                "latitude": -23.5505,
+                "longitude": -46.6333
+              }
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "pedido em Manaus",
+          "request": {
+            "id": "{{id:b}}",
+            "amount": 80000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1",
+              "geolocation": {
+                "latitude": -3.119,
+                "longitude": -60.0217
+              }
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R18"
+            ],
+            "score": 3,
+            "actions": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "R19",
+      "rule": "R19",
+      "title": "Horário atípico: pedido às 02:30 (BRT) de autor que nunca opera de madrugada",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 12,
+          "from": "{{brt:14:00-12d}}",
+          "to": "{{brt:14:00-1d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 150000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "pedido às 02:30",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 150000,
+            "transaction_date": "{{brt:02:30}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R19"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R20",
+      "rule": "R20",
+      "title": "Esvaziamento: R$ 8.000 de R$ 10.000 de saldo livre",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 800000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "free_balance": 1000000
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R20",
+              "R24"
+            ],
+            "score": 3,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R21",
+      "rule": "R21",
+      "title": "Liberação de reserva seguida de saída para contraparte nova",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 450000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "reserved_amount_released": 500000,
+              "reserved_released_at": "{{now-10m}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R21"
+            ],
+            "score": 3,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R22",
+      "rule": "R22",
+      "title": "Destino é sócio: pedido de R$ 2.500 para o CPF de um sócio",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 250000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:p1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "partner_documents": [
+                "{{doc:p1}}",
+                "{{doc:p2}}"
+              ]
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R22"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R23",
+      "rule": "R23",
+      "title": "Contraparte nova para a responsabilidade (impostos): R23 substitui o R5",
+      "steps": [
+        {
+          "name": "imposto 1",
+          "request": {
+            "id": "{{id:h1}}",
+            "amount": 150000,
+            "transaction_date": "{{now-40d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:a}}",
+              "owner": {
+                "document_number": "{{doc:a}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-IMP"
+            }
+          }
+        },
+        {
+          "name": "imposto 2",
+          "request": {
+            "id": "{{id:h2}}",
+            "amount": 150000,
+            "transaction_date": "{{now-32d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:a}}",
+              "owner": {
+                "document_number": "{{doc:a}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-IMP"
+            }
+          }
+        },
+        {
+          "name": "imposto 3",
+          "request": {
+            "id": "{{id:h3}}",
+            "amount": 150000,
+            "transaction_date": "{{now-24d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:b}}",
+              "owner": {
+                "document_number": "{{doc:b}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-IMP"
+            }
+          }
+        },
+        {
+          "name": "imposto 4",
+          "request": {
+            "id": "{{id:h4}}",
+            "amount": 150000,
+            "transaction_date": "{{now-14d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:b}}",
+              "owner": {
+                "document_number": "{{doc:b}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-IMP"
+            }
+          }
+        },
+        {
+          "name": "imposto 5",
+          "request": {
+            "id": "{{id:h5}}",
+            "amount": 150000,
+            "transaction_date": "{{now-5d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:a}}",
+              "owner": {
+                "document_number": "{{doc:a}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-IMP"
+            }
+          }
+        },
+        {
+          "name": "contraparte nunca paga",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 150000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:c}}",
+              "owner": {
+                "document_number": "{{doc:c}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-IMP"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R23"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R24_5k",
+      "rule": "R24",
+      "title": "Conta recém-ativada (10 dias): saída de R$ 6.000 vale 1",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 600000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-10d}}"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R24"
+            ],
+            "score": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "R24_20k",
+      "rule": "R24",
+      "title": "Conta recém-ativada (10 dias): saída de R$ 25.000 vale 2",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 2500000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-10d}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R24"
+            ],
+            "score": 2,
+            "actions": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "R25",
+      "rule": "R25",
+      "title": "Passagem entrada -> saída: 87% das entradas saem em 1 h para destino novo",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 1300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-40d}}",
+              "inflows_24h": 1500000,
+              "last_inflow_at": "{{now-1h}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R24",
+              "R25"
+            ],
+            "score": 4,
+            "actions": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "R26",
+      "rule": "R26",
+      "title": "Destinatário em rede: mesmo CPF recebendo de 4 empresas em 24 h",
+      "steps": [
+        {
+          "name": "empresa 1",
+          "request": {
+            "id": "{{id:e1}}",
+            "amount": 300000,
+            "transaction_date": "{{now-3h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_c1}}",
+              "owner": {
+                "document_number": "{{cnpj:c1}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_c1}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "empresa 2",
+          "request": {
+            "id": "{{id:e2}}",
+            "amount": 300000,
+            "transaction_date": "{{now-2h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_c2}}",
+              "owner": {
+                "document_number": "{{cnpj:c2}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_c2}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "empresa 3",
+          "request": {
+            "id": "{{id:e3}}",
+            "amount": 300000,
+            "transaction_date": "{{now-1h}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_c3}}",
+              "owner": {
+                "document_number": "{{cnpj:c3}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_c3}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "empresa 4",
+          "request": {
+            "id": "{{id:e4}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_c4}}",
+              "owner": {
+                "document_number": "{{cnpj:c4}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_c4}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R26"
+            ],
+            "score": 3,
+            "actions": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "R27",
+      "rule": "R27",
+      "title": "Sócio de muitas empresas: alerta de 0 ponto (não altera o status)",
+      "steps": [
+        {
+          "name": "empresa 1",
+          "request": {
+            "id": "{{id:e1}}",
+            "amount": 100000,
+            "transaction_date": "{{now-5d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_c1}}",
+              "owner": {
+                "document_number": "{{cnpj:c1}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d1}}",
+              "owner": {
+                "document_number": "{{doc:d1}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_c1}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "partner_documents": [
+                "{{doc:socio}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "empresa 2",
+          "request": {
+            "id": "{{id:e2}}",
+            "amount": 100000,
+            "transaction_date": "{{now-3d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_c2}}",
+              "owner": {
+                "document_number": "{{cnpj:c2}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d2}}",
+              "owner": {
+                "document_number": "{{doc:d2}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_c2}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "partner_documents": [
+                "{{doc:socio}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "empresa 3",
+          "request": {
+            "id": "{{id:e3}}",
+            "amount": 100000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_c3}}",
+              "owner": {
+                "document_number": "{{cnpj:c3}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:d3}}",
+              "owner": {
+                "document_number": "{{doc:d3}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_c3}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "partner_documents": [
+                "{{doc:socio}}"
+              ]
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [
+              "R27"
+            ],
+            "score": 0
+          }
+        }
+      ],
+      "requires": [
+        "PixRepository.get_partner_company_ids"
+      ]
+    },
+    {
+      "id": "R30",
+      "rule": "R30",
+      "title": "Saída fora do padrão: R$ 15.000 contra média diária de ~R$ 380 (junto com o R4)",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 12,
+          "from": "{{now-20d}}",
+          "to": "{{now-9d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 100000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:forn}}",
+              "owner": {
+                "document_number": "{{doc:forn}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "saída grande",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 1500000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:forn}}",
+              "owner": {
+                "document_number": "{{doc:forn}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R4",
+              "R30"
+            ],
+            "score": 4,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R31",
+      "rule": "R31",
+      "title": "Destino ligado a sócio: CNPJ em que um sócio da empresa também é sócio",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 400000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{cnpj:outra}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "partner_documents": [
+                "{{doc:p1}}",
+                "{{doc:p2}}"
+              ],
+              "destination_partner_documents": [
+                "{{doc:p1}}"
+              ]
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R31"
+            ],
+            "score": 2,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "R32",
+      "rule": "R32",
+      "title": "Credencial trocada 3 h antes de uma saída de R$ 3.000",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "credential_changed_at": "{{now-3h}}"
+            }
+          },
+          "expect": {
+            "status": "two_factor_required",
+            "rules": [
+              "R32"
+            ],
+            "score": 2,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "C1_pedido_ausente",
+      "rule": "C1",
+      "title": "C1: execução de pedido inexistente é rejeitada",
+      "steps": [
+        {
+          "name": "execução",
+          "request": {
+            "id": "{{id:x}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "execution",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_id": "pedido-inexistente-{{run}}",
+              "request_hash": "h"
+            }
+          },
+          "expect": {
+            "status": "rejected",
+            "rules": [
+              "C1"
+            ],
+            "score": 0,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "C1_hash",
+      "rule": "C1",
+      "title": "C1: request_hash diferente do pedido aprovado",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:req}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_hash": "hash-aprovado"
+            }
+          },
+          "expect": {
+            "status": "approved"
+          }
+        },
+        {
+          "name": "execução adulterada",
+          "request": {
+            "id": "{{id:exec}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "execution",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_id": "{{id:req}}",
+              "request_hash": "hash-ADULTERADO"
+            }
+          },
+          "expect": {
+            "status": "rejected",
+            "rules": [
+              "C1"
+            ],
+            "score": 0,
+            "actions": [
+              "notify_all_partners_mobile"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "C1_duplicada",
+      "rule": "C1",
+      "title": "C1: segunda execução do mesmo pedido (id novo) é rejeitada",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:req}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_hash": "hash-ok"
+            }
+          },
+          "expect": {
+            "status": "approved"
+          }
+        },
+        {
+          "name": "execução 1",
+          "request": {
+            "id": "{{id:exec1}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "execution",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_id": "{{id:req}}",
+              "request_hash": "hash-ok"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": []
+          }
+        },
+        {
+          "name": "execução 2",
+          "request": {
+            "id": "{{id:exec2}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "execution",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_id": "{{id:req}}",
+              "request_hash": "hash-ok"
+            }
+          },
+          "expect": {
+            "status": "rejected",
+            "rules": [
+              "C1"
+            ],
+            "score": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "LEG_fluxo_epp",
+      "rule": "LEG",
+      "title": "Legítimo: pedido -> voto de outro aparelho -> execução, tudo approved",
+      "steps": [
+        {
+          "name": "pedido",
+          "request": {
+            "id": "{{id:req}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_hash": "hash-ok"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": []
+          }
+        },
+        {
+          "name": "voto",
+          "request": {
+            "id": "{{id:vote}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-b}}",
+              "channel": "mobile",
+              "ip": "177.99.0.9"
+            },
+            "context": {
+              "event": "vote",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-b",
+              "account_activated_at": "{{now-200d}}",
+              "request_id": "{{id:req}}",
+              "request_hash": "hash-ok"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": []
+          }
+        },
+        {
+          "name": "execução",
+          "request": {
+            "id": "{{id:exec}}",
+            "amount": 300000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "execution",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "request_id": "{{id:req}}",
+              "request_hash": "hash-ok"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "LEG_folha_agendada",
+      "rule": "LEG",
+      "title": "Legítimo: folha agendada de R$ 30.000 coberta por reserva sai com 0 ponto",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 12,
+          "from": "{{now-20d}}",
+          "to": "{{now-9d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 100000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:emp}}",
+              "owner": {
+                "document_number": "{{doc:emp}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "pedido agendado",
+          "request": {
+            "id": "{{id:req}}",
+            "amount": 3000000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:emp}}",
+              "owner": {
+                "document_number": "{{doc:emp}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "scheduled",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-FOLHA",
+              "request_hash": "hash-folha"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [],
+            "score": 0
+          }
+        },
+        {
+          "name": "execução agendada",
+          "request": {
+            "id": "{{id:exec}}",
+            "amount": 3000000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:emp}}",
+              "owner": {
+                "document_number": "{{doc:emp}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "execution",
+              "origin": "scheduled",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}",
+              "responsibility_id": "RESP-FOLHA",
+              "request_id": "{{id:req}}",
+              "request_hash": "hash-folha"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [],
+            "score": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "LEG_fornecedor_mensal",
+      "rule": "LEG",
+      "title": "Legítimo: fornecedor recorrente de R$ 40.000 (valor habitual) sai com 0 ponto",
+      "steps": [
+        {
+          "name": "hist",
+          "repeat": 12,
+          "from": "{{now-20d}}",
+          "to": "{{now-9d}}",
+          "request": {
+            "id": "{{id:h}}",
+            "amount": 100000,
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:emp}}",
+              "owner": {
+                "document_number": "{{doc:emp}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "fornecedor -75d",
+          "request": {
+            "id": "{{id:f1}}",
+            "amount": 4000000,
+            "transaction_date": "{{now-75d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:forn}}",
+              "owner": {
+                "document_number": "{{doc:forn}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "fornecedor -45d",
+          "request": {
+            "id": "{{id:f2}}",
+            "amount": 4000000,
+            "transaction_date": "{{now-45d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:forn}}",
+              "owner": {
+                "document_number": "{{doc:forn}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "fornecedor -25d",
+          "request": {
+            "id": "{{id:f3}}",
+            "amount": 4000000,
+            "transaction_date": "{{now-25d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:forn}}",
+              "owner": {
+                "document_number": "{{doc:forn}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "fornecedor do mês",
+          "request": {
+            "id": "{{id:f4}}",
+            "amount": 4000000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:forn}}",
+              "owner": {
+                "document_number": "{{doc:forn}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "status": "approved",
+            "rules": [],
+            "score": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "API_idempotencia",
+      "rule": "API",
+      "title": "Idempotência: mesmo id e payload -> 200; mesmo id e payload diferente -> 409",
+      "steps": [
+        {
+          "name": "primeiro envio",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 20000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "http": 201,
+            "status": "approved"
+          }
+        },
+        {
+          "name": "reenvio idêntico",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 20000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "http": 200,
+            "same_key_as_step": 0
+          }
+        },
+        {
+          "name": "mesmo id, valor diferente",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 30000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            }
+          },
+          "expect": {
+            "http": 409
+          }
+        }
+      ]
+    },
+    {
+      "id": "API_422_context",
+      "rule": "API",
+      "title": "Validação: context inválido devolve 422",
+      "steps": [
+        {
+          "name": "event inválido",
+          "request": {
+            "id": "{{id:a}}",
+            "amount": 10000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "foo",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "http": 422
+          }
+        },
+        {
+          "name": "vote sem request_id",
+          "request": {
+            "id": "{{id:b}}",
+            "amount": 10000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_co}}",
+              "owner": {
+                "document_number": "{{cnpj:co}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-co}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "vote",
+              "origin": "immediate",
+              "company_id": "{{id:emp_co}}",
+              "author_id": "socio-a",
+              "account_activated_at": "{{now-200d}}"
+            }
+          },
+          "expect": {
+            "http": 422
+          }
+        },
+        {
+          "name": "context sem author_id",
+          "request": {
+            "id": "{{id:c}}",
+            "amount": 10000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_src}}",
+              "owner": {
+                "document_number": "{{doc:src}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest}}",
+              "owner": {
+                "document_number": "{{doc:dest}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-main}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request"
+            }
+          },
+          "expect": {
+            "http": 422
+          }
+        }
+      ]
+    }
+  ]
+}
