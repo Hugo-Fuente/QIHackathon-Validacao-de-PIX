@@ -1,0 +1,96 @@
+{
+  "run": "1fa16791",
+  "url": "http://localhost:8000/pix/transaction",
+  "started_at": "2026-10-18 08:35:35",
+  "duration_s": 1.1,
+  "overall": {
+    "requests": 0,
+    "elapsed_s": 1.09,
+    "rps": 0.0,
+    "errors": 0,
+    "error_rate_pct": 0,
+    "p50_ms": 0.0,
+    "p90_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0,
+    "max_ms": 0,
+    "mean_ms": 0,
+    "status_codes": {}
+  },
+  "checks": [
+    {
+      "phase": "smoke",
+      "name": "POST válido devolve 201 com key e status",
+      "passed": true,
+      "detail": "http 201"
+    },
+    {
+      "phase": "smoke",
+      "name": "reenvio idêntico devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET de id inexistente devolve 404",
+      "passed": true,
+      "detail": "http 404"
+    },
+    {
+      "phase": "destination",
+      "name": "conta destino serializa o perfil: R9 dispara no quinto pagador",
+      "passed": true,
+      "detail": "concorrente=1, sequencial=1"
+    },
+    {
+      "phase": "destination",
+      "name": "todos os Pix da rajada são gravados",
+      "passed": true,
+      "detail": "{'conc': 0, 'seq': 0}"
+    },
+    {
+      "phase": "execution",
+      "name": "uma execução passa e as outras quatro acionam C1",
+      "passed": true,
+      "detail": "sem C1=1, com C1=4, HTTP=[201, 201, 201, 201, 201]"
+    },
+    {
+      "phase": "execution",
+      "name": "todas as execuções duplicadas recebem resposta normal",
+      "passed": true,
+      "detail": "HTTP=[201, 201, 201, 201, 201]"
+    }
+  ],
+  "phases": {
+    "destination": {
+      "r9_hits": {
+        "conc": 1,
+        "seq": 1
+      },
+      "non_201": {
+        "conc": 0,
+        "seq": 0
+      },
+      "expected_r9_hits": 1
+    },
+    "execution": {
+      "request_status": 201,
+      "execution_statuses": [
+        201,
+        201,
+        201,
+        201,
+        201
+      ],
+      "first_execution_without_c1": 1,
+      "duplicate_execution_c1": 4,
+      "violations": 0
+    }
+  }
+}

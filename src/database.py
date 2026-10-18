@@ -2,7 +2,7 @@
 
 O middleware `session_manager` abre o contexto de cada requisição e fecha a
 sessão no fim. A sessão é criada sob demanda, quando um controller a pede, e
-o commit é sempre decidido pelo controller.
+o repositório confirma a transação completa de gravação da análise.
 """
 
 from contextvars import ContextVar
@@ -14,7 +14,23 @@ from sqlalchemy.orm import Session, sessionmaker
 from constants import DATABASE_URL
 
 
-engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=30, pool_recycle=600, pool_pre_ping=True)
+# Bound lock waits and abandoned open transactions so a stuck request cannot hold
+# an advisory lock indefinitely. Values are PostgreSQL milliseconds.
+POSTGRES_LOCK_TIMEOUT_MS = 5_000
+POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS = 15_000
+POSTGRES_OPTIONS = (
+    f"-c lock_timeout={POSTGRES_LOCK_TIMEOUT_MS} "
+    f"-c idle_in_transaction_session_timeout={POSTGRES_IDLE_TRANSACTION_TIMEOUT_MS}"
+)
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=10,
+    pool_recycle=600,
+    pool_pre_ping=True,
+    connect_args={"options": POSTGRES_OPTIONS},
+)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
@@ -36,6 +52,19 @@ class Context:
             self.db_session = SessionLocal()
 
         return self.db_session
+
+    def commit(self) -> None:
+        if self.db_session is not None:
+            self.db_session.commit()
+
+    def rollback(self) -> None:
+        if self.db_session is not None:
+            self.db_session.rollback()
+
+    def finalize(self, response_status: int) -> None:
+        """Roll back error responses; successful writes are committed by the repository."""
+        if response_status >= 400:
+            self.rollback()
 
 
 _context: ContextVar[Optional[Context]] = ContextVar("context", default=None)

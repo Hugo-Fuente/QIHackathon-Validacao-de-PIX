@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "ruleset_version": "v7.3",
+  "parameters": {
+    "shared": {
+      "CENTS_PER_REAL": 100,
+      "HABITUAL_AMOUNT_FACTOR": 1.2,
+      "HABITUAL_MIN_FACTOR": 0.8,
+      "PROFILE_LIMIT_CENTS": 500000,
+      "PROFILE_LIMIT_MULTIPLIER": 3,
+      "PROFILE_MATURE_AGE_DAYS": 14,
+      "PROFILE_MATURE_COUNT": 10,
+      "PROFILE_MATURE_DAYS": 5,
+      "PROFILE_SAMPLE_SIZE": 20,
+      "RECURRENT_AGE_DAYS": 14,
+      "RECURRENT_DISTINCT_DAYS": 3
+    },
+    "R10": {
+      "R10_MAX_ACCOUNT_AGE_DAYS": 30,
+      "R10_MIN_AMOUNT_CENTS": 200000,
+      "R10_PROFILE_EVENTS": 3
+    },
+    "R11": {
+      "R11_MIN_DISTANCE_KM": 50,
+      "R11_MIN_SPEED_KMH": 900,
+      "R11_WINDOW_MINUTES": 60
+    },
+    "R12": {
+      "R12_MIN_COMPANIES": 2,
+      "R12_MIN_PAYER_DOCUMENTS": 3,
+      "R12_WINDOW_HOURS": 24
+    },
+    "R13": {
+      "R13_LOWER_LIMIT_RATIO": 0.9,
+      "R13_MIN_EVENTS": 3,
+      "R13_UPPER_LIMIT_RATIO": 0.999,
+      "R13_WINDOW_HOURS": 24
+    },
+    "R14": {
+      "R14_MAX_AMOUNT_RATIO": 1.2,
+      "R14_MIN_AMOUNT_RATIO": 0.8,
+      "R14_WINDOW_HOURS": 24
+    },
+    "R15": {
+      "R15_MAX_VOTE_SECONDS": 10
+    },
+    "R16": {
+      "R16_MIN_COMPANY_AGE_DAYS": 7,
+      "R16_WINDOW_HOURS": 24
+    },
+    "R17": {
+      "R17_MIN_AMOUNT_CENTS": 50000,
+      "R17_MIN_HISTORY": 3
+    },
+    "R18": {
+      "R18_MIN_DISTANCE_KM": 50,
+      "R18_MIN_SPEED_KMH": 900,
+      "R18_WINDOW_HOURS": 12
+    },
+    "R19": {
+      "R19_END_HOUR": 5,
+      "R19_MIN_AMOUNT_CENTS": 100000,
+      "R19_MIN_HISTORY": 10,
+      "R19_START_HOUR": 0
+    },
+    "R1": {
+      "R1_MIN_AMOUNT_CENTS": 500000
+    },
+    "R20": {
+      "R20_MIN_BALANCE_RATIO": 0.7,
+      "R20_MIN_TOTAL_CENTS": 500000,
+      "R20_WINDOW_HOURS": 24
+    },
+    "R21": {
+      "R21_MIN_RELEASED_RATIO": 0.8,
+      "R21_WINDOW_MINUTES": 30
+    },
+    "R22": {
+      "R22_MIN_AMOUNT_CENTS": 200000
+    },
+    "R23": {
+      "R23_MAX_DESTINATIONS": 3,
+      "R23_MIN_AMOUNT_CENTS": 100000,
+      "R23_MIN_RESPONSIBILITY_EVENTS": 5,
+      "R23_WINDOW_DAYS": 90
+    },
+    "R24": {
+      "R24_LARGE_CENTS": 2000000,
+      "R24_MATURE_AGE_DAYS": 30,
+      "R24_MATURE_OUTFLOWS": 10,
+      "R24_OPERATIONAL_EVIDENCE_MAX_AGE_DAYS": 90,
+      "R24_OPERATIONAL_PROFILE_MAX_AGE_DAYS": 365,
+      "R24_OPERATIONAL_PROFILE_MIN_APPROVERS": 2,
+      "R24_SMALL_CENTS": 500000
+    },
+    "R25": {
+      "R25_BASELINE_DAYS": 30,
+      "R25_MAX_COMPANY_AGE_DAYS": 90,
+      "R25_MAX_INFLOW_AGE_HOURS": 2,
+      "R25_MIN_INFLOW_MULTIPLE": 3,
+      "R25_MIN_OUTFLOW_RATIO": 0.8,
+      "R25_WINDOW_HOURS": 24
+    },
+    "R26": {
+      "R26_BASELINE_DAYS": 30,
+      "R26_MIN_BASELINE_DAYS": 5,
+      "R26_MIN_COMPANIES": 4,
+      "R26_MIN_TOTAL_MULTIPLE": 3,
+      "R26_WINDOW_HOURS": 24
+    },
+    "R27": {
+      "R27_MIN_COMPANIES": 3,
+      "R27_WINDOW_DAYS": 30
+    },
+    "R28": {
+      "R28_LOWER_LIMIT_RATIO": 0.9,
+      "R28_MIN_EVENTS": 3,
+      "R28_WINDOW_HOURS": 24
+    },
+    "R29": {
+      "R29_MIN_EVENTS": 4,
+      "R29_RECURRENT_EXEMPTION_FACTOR": 1.5,
+      "R29_WINDOW_MINUTES": 60
+    },
+    "R2": {
+      "R2_MIN_EVENTS": 5,
+      "R2_WINDOW_SECONDS": 60
+    },
+    "R30": {
+      "R30_BASELINE_DAYS": 30,
+      "R30_BASELINE_DIVISOR": 29,
+      "R30_BASELINE_MULTIPLIER": 3,
+      "R30_MIN_COMPANY_AGE_DAYS": 30,
+      "R30_MIN_HISTORY_OUTFLOWS": 10,
+      "R30_MIN_TOTAL_CENTS": 1000000,
+      "R30_RECENT_WINDOW_HOURS": 24
+    },
+    "R31": {
+      "R31_MIN_AMOUNT_CENTS": 200000
+    },
+    "R32": {
+      "R32_MIN_AMOUNT_CENTS": 200000,
+      "R32_NEW_CREDENTIAL_DAYS": 7,
+      "R32_WINDOW_HOURS": 24
+    },
+    "R33": {
+      "R33_MIN_ACCOUNT_AGE_DAYS": 30,
+      "R33_MIN_AMOUNT_CENTS": 200000
+    },
+    "R3": {
+      "R3_LIMIT_FACTOR": 2,
+      "R3_MIN_EVENTS": 2,
+      "R3_MIN_TOTAL_CENTS": 1000000,
+      "R3_WINDOW_MINUTES": 10
+    },
+    "R4": {
+      "R4_MEDIAN_FACTOR": 5,
+      "R4_MIN_AMOUNT_CENTS": 50000,
+      "R4_MIN_HISTORY": 5
+    },
+    "R5": {
+      "R5_MIN_AMOUNT_CENTS": 100000,
+      "R5_MIN_HISTORY": 3,
+      "R5_PROFILE_MEDIAN_COUNT": 5
+    },
+    "R6": {
+      "R6_MAX_ACCOUNT_AGE_DAYS": 30,
+      "R6_MIN_AMOUNT_CENTS": 100000,
+      "R6_SMALL_PAYMENT_MAX_EVENT_CENTS": 100000,
+      "R6_SMALL_PAYMENT_MIN_EVENTS": 3,
+      "R6_SMALL_PAYMENT_MIN_TOTAL_CENTS": 200000,
+      "R6_SMALL_PAYMENT_WINDOW_MINUTES": 5
+    },
+    "R7": {
+      "R7_MIN_AMOUNT_CENTS": 50000,
+      "R7_MIN_HISTORY": 3
+    },
+    "R8": {
+      "R8_MAX_EVENT_CENTS": 100000,
+      "R8_MIN_EVENTS": 3,
+      "R8_MIN_TOTAL_CENTS": 200000,
+      "R8_WINDOW_MINUTES": 5
+    },
+    "R9": {
+      "R9_CNPJ_ACCOUNT_AGE_DAYS": 30,
+      "R9_MIN_SENDERS": 5,
+      "R9_MIN_TOTAL_CENTS": 1000000,
+      "R9_WINDOW_MINUTES": 60
+    }
+  },
+  "enabled_rules": [
+    "C1",
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R5",
+    "R6",
+    "R7",
+    "R8",
+    "R9",
+    "R10",
+    "R11",
+    "R12",
+    "R13",
+    "R14",
+    "R15",
+    "R16",
+    "R17",
+    "R18",
+    "R19",
+    "R20",
+    "R21",
+    "R22",
+    "R23",
+    "R24",
+    "R25",
+    "R26",
+    "R27",
+    "R28",
+    "R29",
+    "R30",
+    "R31",
+    "R32",
+    "R33"
+  ],
+  "rule_implementations": {
+    "C1": "v2",
+    "R1": "v1",
+    "R2": "v1",
+    "R3": "v1",
+    "R4": "v1",
+    "R5": "v1",
+    "R6": "v1",
+    "R7": "v1",
+    "R8": "v1",
+    "R9": "v1",
+    "R10": "v1",
+    "R11": "v1",
+    "R12": "v1",
+    "R13": "v1",
+    "R14": "v1",
+    "R15": "v1",
+    "R16": "v1",
+    "R17": "v1",
+    "R18": "v1",
+    "R19": "v1",
+    "R20": "v1",
+    "R21": "v1",
+    "R22": "v1",
+    "R23": "v1",
+    "R24": "v3",
+    "R25": "v1",
+    "R26": "v1",
+    "R27": "v1",
+    "R28": "v1",
+    "R29": "v1",
+    "R30": "v1",
+    "R31": "v1",
+    "R32": "v1",
+    "R33": "v1"
+  },
+  "point_overrides": {},
+  "family_caps": {
+    "value": {
+      "codes": [
+        "R1",
+        "R28",
+        "R3",
+        "R4"
+      ],
+      "max_points": 3
+    },
+    "fractioning": {
+      "codes": [
+        "R29",
+        "R8"
+      ],
+      "max_points": 2
+    },
+    "controls": {
+      "codes": [
+        "R13",
+        "R14",
+        "R16"
+      ],
+      "max_points": 3
+    },
+    "session": {
+      "codes": [
+        "R17",
+        "R18",
+        "R19",
+        "R32"
+      ],
+      "max_points": 4
+    },
+    "linked_destination": {
+      "codes": [
+        "R22",
+        "R31"
+      ],
+      "max_points": 2
+    }
+  },
+  "score_thresholds": {
+    "two_factor_min_score": 2,
+    "reject_min_score": 5
+  }
+}

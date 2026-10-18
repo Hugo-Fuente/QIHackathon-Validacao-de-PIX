@@ -1,0 +1,237 @@
+{
+  "run": "1257649e",
+  "url": "http://localhost:8000/pix/transaction",
+  "started_at": "2026-10-18 07:47:51",
+  "duration_s": 75.4,
+  "overall": {
+    "requests": 22308,
+    "elapsed_s": 75.39,
+    "rps": 295.9,
+    "errors": 0,
+    "error_rate_pct": 0.0,
+    "p50_ms": 73.8,
+    "p90_ms": 137.5,
+    "p95_ms": 179.2,
+    "p99_ms": 288.0,
+    "max_ms": 556.3,
+    "mean_ms": 84.0,
+    "status_codes": {
+      "200": 1145,
+      "201": 20588,
+      "422": 575
+    }
+  },
+  "checks": [
+    {
+      "phase": "smoke",
+      "name": "POST válido devolve 201 com key e status",
+      "passed": true,
+      "detail": "http 201"
+    },
+    {
+      "phase": "smoke",
+      "name": "reenvio idêntico devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET de id inexistente devolve 404",
+      "passed": true,
+      "detail": "http 404"
+    },
+    {
+      "phase": "mixed",
+      "name": "mistura sem erros (201/200/422 nos casos esperados, C1 não dispara no fluxo legítimo)",
+      "passed": true,
+      "detail": "6328 req, erros=0, 420.5 req/s, p95=128.7ms"
+    },
+    {
+      "phase": "soak",
+      "name": "sem erros e p95 da última janela ≤ 2× o da primeira (sem degradação)",
+      "passed": false,
+      "detail": "erros=0, p95 119.2→319.6 ms"
+    }
+  ],
+  "phases": {
+    "mixed": {
+      "requests": 6328,
+      "elapsed_s": 15.05,
+      "rps": 420.5,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "p50_ms": 46.0,
+      "p90_ms": 107.0,
+      "p95_ms": 128.7,
+      "p99_ms": 176.2,
+      "max_ms": 237.1,
+      "mean_ms": 59.2,
+      "status_codes": {
+        "200": 1145,
+        "201": 4608,
+        "422": 575
+      },
+      "concurrency": 25,
+      "per_operation": {
+        "GET": {
+          "requests": 572,
+          "elapsed_s": 15.05,
+          "rps": 38.0,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 26.9,
+          "p90_ms": 57.8,
+          "p95_ms": 66.6,
+          "p99_ms": 100.5,
+          "max_ms": 122.4,
+          "mean_ms": 31.7,
+          "status_codes": {
+            "200": 572
+          }
+        },
+        "POST epp execution": {
+          "requests": 576,
+          "elapsed_s": 15.05,
+          "rps": 38.3,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 71.2,
+          "p90_ms": 121.7,
+          "p95_ms": 139.0,
+          "p99_ms": 173.9,
+          "max_ms": 216.0,
+          "mean_ms": 72.1,
+          "status_codes": {
+            "201": 576
+          }
+        },
+        "POST epp request": {
+          "requests": 576,
+          "elapsed_s": 15.05,
+          "rps": 38.3,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 61.8,
+          "p90_ms": 113.3,
+          "p95_ms": 136.4,
+          "p99_ms": 179.3,
+          "max_ms": 237.1,
+          "mean_ms": 67.7,
+          "status_codes": {
+            "201": 576
+          }
+        },
+        "POST inválido": {
+          "requests": 575,
+          "elapsed_s": 15.05,
+          "rps": 38.2,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 18.7,
+          "p90_ms": 46.6,
+          "p95_ms": 54.7,
+          "p99_ms": 97.7,
+          "max_ms": 130.6,
+          "mean_ms": 24.1,
+          "status_codes": {
+            "422": 575
+          }
+        },
+        "POST reenvio": {
+          "requests": 573,
+          "elapsed_s": 15.05,
+          "rps": 38.1,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 46.9,
+          "p90_ms": 85.6,
+          "p95_ms": 98.1,
+          "p99_ms": 139.0,
+          "max_ms": 180.5,
+          "mean_ms": 48.4,
+          "status_codes": {
+            "200": 573
+          }
+        },
+        "POST retail": {
+          "requests": 3456,
+          "elapsed_s": 15.05,
+          "rps": 229.6,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 60.6,
+          "p90_ms": 113.6,
+          "p95_ms": 137.4,
+          "p99_ms": 185.6,
+          "max_ms": 236.5,
+          "mean_ms": 67.9,
+          "status_codes": {
+            "201": 3456
+          }
+        }
+      }
+    },
+    "soak": {
+      "requests": 15980,
+      "elapsed_s": 60.04,
+      "rps": 266.1,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "p50_ms": 77.8,
+      "p90_ms": 151.4,
+      "p95_ms": 196.8,
+      "p99_ms": 309.9,
+      "max_ms": 556.3,
+      "mean_ms": 93.8,
+      "status_codes": {
+        "201": 15980
+      },
+      "concurrency": 25,
+      "windows": [
+        {
+          "window_start_s": 0,
+          "rps": 343.0,
+          "p95_ms": 119.2,
+          "errors": 0
+        },
+        {
+          "window_start_s": 10,
+          "rps": 363.3,
+          "p95_ms": 100.7,
+          "errors": 0
+        },
+        {
+          "window_start_s": 20,
+          "rps": 261.3,
+          "p95_ms": 241.0,
+          "errors": 0
+        },
+        {
+          "window_start_s": 30,
+          "rps": 240.0,
+          "p95_ms": 191.0,
+          "errors": 0
+        },
+        {
+          "window_start_s": 40,
+          "rps": 233.1,
+          "p95_ms": 211.5,
+          "errors": 0
+        },
+        {
+          "window_start_s": 50,
+          "rps": 157.3,
+          "p95_ms": 319.6,
+          "errors": 0
+        }
+      ],
+      "p95_drift_ratio": 2.68
+    }
+  }
+}

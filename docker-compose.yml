@@ -46,8 +46,14 @@ services:
     ports:
       # Defina DB_PORT no .env se a porta 5432 estiver ocupada.
       - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pix_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bootcamp -d epp_conta_compartilhada"]
       interval: 3s
       timeout: 3s
       retries: 20
+
+volumes:
+  pix_postgres_data:
+    name: qihackathon-validacao-de-pix-postgres

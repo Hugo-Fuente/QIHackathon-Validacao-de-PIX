@@ -1,0 +1,249 @@
+{
+  "run": "e74e29a6",
+  "url": "http://localhost:8000/pix/transaction",
+  "started_at": "2026-10-18 07:52:47",
+  "duration_s": 75.5,
+  "overall": {
+    "requests": 18325,
+    "elapsed_s": 75.49,
+    "rps": 242.7,
+    "errors": 0,
+    "error_rate_pct": 0.0,
+    "p50_ms": 94.1,
+    "p90_ms": 147.3,
+    "p95_ms": 172.1,
+    "p99_ms": 242.3,
+    "max_ms": 2611.6,
+    "mean_ms": 102.3,
+    "status_codes": {
+      "200": 823,
+      "201": 17087,
+      "422": 415
+    }
+  },
+  "checks": [
+    {
+      "phase": "smoke",
+      "name": "POST válido devolve 201 com key e status",
+      "passed": true,
+      "detail": "http 201"
+    },
+    {
+      "phase": "smoke",
+      "name": "reenvio idêntico devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET de id inexistente devolve 404",
+      "passed": true,
+      "detail": "http 404"
+    },
+    {
+      "phase": "mixed",
+      "name": "mistura sem erros (201/200/422 nos casos esperados, C1 não dispara no fluxo legítimo)",
+      "passed": true,
+      "detail": "4558 req, erros=0, 302.4 req/s, p95=174.8ms"
+    },
+    {
+      "phase": "mixed",
+      "name": "mistura dentro do SLA (p95 ≤ 2000 ms)",
+      "passed": true,
+      "detail": "p95=174.8ms, 302.4 req/s"
+    },
+    {
+      "phase": "soak",
+      "name": "sem erros e p95 da última janela ≤ 2× o da primeira (sem degradação)",
+      "passed": true,
+      "detail": "erros=0, p95 176.0→97.4 ms"
+    }
+  ],
+  "phases": {
+    "mixed": {
+      "requests": 4558,
+      "elapsed_s": 15.07,
+      "rps": 302.4,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "p50_ms": 69.4,
+      "p90_ms": 145.2,
+      "p95_ms": 174.8,
+      "p99_ms": 242.1,
+      "max_ms": 353.5,
+      "mean_ms": 82.3,
+      "status_codes": {
+        "200": 823,
+        "201": 3320,
+        "422": 415
+      },
+      "concurrency": 25,
+      "per_operation": {
+        "GET": {
+          "requests": 411,
+          "elapsed_s": 15.07,
+          "rps": 27.3,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 34.2,
+          "p90_ms": 69.4,
+          "p95_ms": 85.5,
+          "p99_ms": 122.9,
+          "max_ms": 160.8,
+          "mean_ms": 39.7,
+          "status_codes": {
+            "200": 411
+          }
+        },
+        "POST epp execution": {
+          "requests": 415,
+          "elapsed_s": 15.07,
+          "rps": 27.5,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 96.2,
+          "p90_ms": 155.1,
+          "p95_ms": 176.8,
+          "p99_ms": 253.6,
+          "max_ms": 291.5,
+          "mean_ms": 99.9,
+          "status_codes": {
+            "201": 415
+          }
+        },
+        "POST epp request": {
+          "requests": 415,
+          "elapsed_s": 15.07,
+          "rps": 27.5,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 89.3,
+          "p90_ms": 149.1,
+          "p95_ms": 182.4,
+          "p99_ms": 245.4,
+          "max_ms": 305.7,
+          "mean_ms": 95.8,
+          "status_codes": {
+            "201": 415
+          }
+        },
+        "POST inválido": {
+          "requests": 415,
+          "elapsed_s": 15.07,
+          "rps": 27.5,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 23.9,
+          "p90_ms": 54.9,
+          "p95_ms": 68.8,
+          "p99_ms": 131.0,
+          "max_ms": 189.8,
+          "mean_ms": 30.8,
+          "status_codes": {
+            "422": 415
+          }
+        },
+        "POST reenvio": {
+          "requests": 412,
+          "elapsed_s": 15.07,
+          "rps": 27.3,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 56.4,
+          "p90_ms": 97.5,
+          "p95_ms": 114.8,
+          "p99_ms": 149.5,
+          "max_ms": 236.0,
+          "mean_ms": 59.6,
+          "status_codes": {
+            "200": 412
+          }
+        },
+        "POST retail": {
+          "requests": 2490,
+          "elapsed_s": 15.07,
+          "rps": 165.2,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 87.2,
+          "p90_ms": 161.9,
+          "p95_ms": 190.8,
+          "p99_ms": 254.2,
+          "max_ms": 353.5,
+          "mean_ms": 96.5,
+          "status_codes": {
+            "201": 2490
+          }
+        }
+      }
+    },
+    "soak": {
+      "requests": 13767,
+      "elapsed_s": 60.07,
+      "rps": 229.2,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "p50_ms": 96.7,
+      "p90_ms": 148.2,
+      "p95_ms": 170.8,
+      "p99_ms": 242.9,
+      "max_ms": 2611.6,
+      "mean_ms": 108.9,
+      "status_codes": {
+        "201": 13767
+      },
+      "concurrency": 25,
+      "windows": [
+        {
+          "window_start_s": 0,
+          "rps": 236.5,
+          "p95_ms": 176.0,
+          "errors": 0
+        },
+        {
+          "window_start_s": 10,
+          "rps": 266.2,
+          "p95_ms": 148.4,
+          "errors": 0
+        },
+        {
+          "window_start_s": 20,
+          "rps": 172.5,
+          "p95_ms": 192.3,
+          "errors": 0
+        },
+        {
+          "window_start_s": 30,
+          "rps": 236.7,
+          "p95_ms": 166.3,
+          "errors": 0
+        },
+        {
+          "window_start_s": 40,
+          "rps": 226.6,
+          "p95_ms": 194.0,
+          "errors": 0
+        },
+        {
+          "window_start_s": 50,
+          "rps": 236.3,
+          "p95_ms": 158.3,
+          "errors": 0
+        },
+        {
+          "window_start_s": 60,
+          "rps": 1.9,
+          "p95_ms": 97.4,
+          "errors": 0
+        }
+      ],
+      "p95_drift_ratio": 0.55
+    }
+  }
+}

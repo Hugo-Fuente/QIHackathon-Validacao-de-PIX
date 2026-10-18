@@ -1,10 +1,10 @@
 # Motor Antifraude Pix
 
 **Integrantes:** Hugo Gomes · Leandro Apolinário Leite · Mateus Carósio  
-**Data:** 17/10/2026  
-**Versão das regras:** 7
+**Data:** 18/10/2026<br>
+**Versão das regras:** 7.3
 
-> A especificação vigente é a [RFC v7](rfc_antifraude_pix.md). As tabelas detalhadas abaixo registram a revisão v6; para o limite relativo ao perfil, início frio e contrato de `context`, siga a RFC.
+> A especificação vigente é a [RFC v7.3](rfc_antifraude_pix.md). A v7.3 amplia o perfil de folha para despesas operacionais agendadas, exigindo evidências recentes e limites aprovados.
 
 ## Como o motor de decisão funciona
 
@@ -26,6 +26,14 @@ Há três blocos de lógica:
 - **Checagem de integridade C1 (EPP):** não pontua; garante que o que foi aprovado é o que está sendo executado.
 
 O contrato do desafio não muda: o payload de exemplo, sem `context`, é aceito e analisado só pelo núcleo. O `context` é uma extensão opcional da entrada, e a saída continua sendo `key`, `status` e `metadata`.
+
+### Configuração versionada das regras
+
+Os parâmetros ativos ficam em [`src/config/rulesets/active.json`](src/config/rulesets/active.json), agrupados por regra, junto com as regras habilitadas, implementações selecionadas, eventuais substituições de pontos, tetos por família e faixas de decisão. Valores monetários terminados em `_CENTS` são centavos. A configuração é validada inteira na inicialização; chaves ausentes ou desconhecidas, tipos incorretos, valores fora dos limites e o desligamento da C1 impedem a API de iniciar. Cada processo mantém uma cópia imutável. Ao publicar a mudança, todas as instâncias precisam trocar para a mesma versão; não use uma implantação gradual que deixe processos com versões diferentes atendendo tráfego ao mesmo tempo.
+
+Para alterar um limite, edite o parâmetro da regra, aumente `ruleset_version`, revise a mudança no Git e reinicie/publique todas as instâncias com a nova versão. O rollback consiste em restaurar a versão anterior da configuração e publicar novamente. Cada decisão registra `metadata.rules_version` e `metadata.ruleset_hash`, que identificam a configuração exata. A configuração não aceita expressões, Python nem SQL.
+
+Uma mudança de fórmula fica no módulo da regra correspondente. Preserve a implementação publicada (`v1`), registre a nova função em `src/rules/registry.py` com outro nome (`v2`) e selecione-a em `rule_implementations`. A API falha na inicialização quando a implementação selecionada não está registrada. Aumente `ruleset_version` para qualquer mudança de fórmula ou parâmetros. Para uma regra com faixas internas de pontos, um `point_overrides` numérico aplica o mesmo peso em todas as faixas; sem substituição, permanecem os pontos definidos pela regra.
 
 A versão 5 nasceu de uma revisão de brechas da versão 4: cenários em que o motor deixava passar fraude (sócios coniventes, esvaziamento em fatias, fracionamento por documento, agendamento como atalho, conta nova sem histórico). O que cada brecha mudou está na seção [Brechas analisadas e como a v5 responde](#brechas-analisadas-e-como-a-v5-responde). A versão 6 revisou o que a v5 ainda fazia por contagem ou por valor absoluto: o "recorrente" que bastava ser pago 3 vezes, o R1 que cobrava o mesmo de todo pagador e a falta de uma regra que olhasse a história de cada contraparte (seção [Revisão v6](#revisão-v6-contraparte-perfil-e-valor-relativo)). O que ficou de fora de propósito está em [Limitações conhecidas e roadmap](#limitações-conhecidas-e-roadmap-não-implementado-na-v6).
 
@@ -104,19 +112,31 @@ O "autor" é o sócio que criou o pedido; "recorrente" é a contraparte recorren
 | **R21 — Liberação de reserva seguida de saída** | O dinheiro reservado é liberado e sai logo depois. | Liberação ou transferência entre reservas e, em ≤ 30 min, saída do autor ≥ 80% do liberado para contraparte nova. **+3** | Tira da empresa o dinheiro de impostos ou folha; a janela curta liga a saída à liberação. |
 | **R22 — Destino é sócio** | O dinheiro vai para o CPF de um sócio. | Contraparte com o CPF de um sócio, valor ≥ R$ 2.000; não vale para contraparte recorrente (v6) com valor ±20% (pró-labore). **+1** | O dinheiro é da empresa, não dos sócios; isolada pesa pouco e soma com R13, R15 ou R20. |
 | **R23 — Contraparte nova para a responsabilidade** | Responsabilidade previsível paga um destino fora do padrão. | Responsabilidade com ≥ 5 pagamentos e ≤ 3 contrapartes em 90 dias recebe pedido de contraparte nunca paga por ela, valor ≥ R$ 1.000. **+1** | Impostos e folha pagam sempre os mesmos destinos. Não soma com o R5: o mesmo fato não conta duas vezes. |
-| **R24 — Conta recém-ativada com saída grande** | Conta nova movimenta muito. | Ativada há ≤ 30 dias: saída externa ≥ R$ 5.000 vale 1; ≥ R$ 20.000 vale 2. **+1 ou +2** | Usa a ativação, não o cadastro, pois a conta só movimenta depois da aprovação do back-office; os dois degraus pesam mais o valor maior. |
-| **R25 — Passagem entrada → saída** | Dinheiro entra e sai quase de imediato. | Entradas externas ≥ R$ 10.000 em 24 h e saída ≥ 80% delas em ≤ 2 h para contraparte nova, em empresa ativa há ≤ 90 dias ou só com pagadores novos. **+3** | Conta de passagem. É a de maior risco de falso positivo: calibrar primeiro. |
-| **R26 — Destinatário em rede** | O mesmo destinatário recebe de várias empresas. | Mesmo documento de contraparte com pedidos de ≥ 4 empresas em 24 h, soma ≥ R$ 10.000, contando o atual; não vale se for contraparte recorrente (v6) da empresa atual. **+3** | Só a plataforma enxerga várias empresas. Revisar a base legal (LGPD) e consultar por hash do documento. |
+| **R24 — Conta recém-ativada com saída grande** | Conta nova movimenta muito. | Empresa imatura: saída externa ≥ R$ 5.000 vale 1; ≥ R$ 20.000 vale 2. Não pontua para pedido ou execução agendada que corresponda a um perfil de folha ativo e aprovado, dentro dos limites e com beneficiário autorizado. **+1 ou +2** | O perfil evita tratar uma folha legítima como atípica desde o primeiro mês. A exceção não vale para pagamentos avulsos, perfil vencido ou alterado, lote acima do limite, beneficiário não autorizado ou execução divergente. |
+| **R25 — Passagem entrada → saída** | Dinheiro entra e sai quase de imediato. | Entradas externas em 24 h ≥ 3× a mediana das entradas externas em janelas de 24 h dos 30 dias anteriores; a saída atual é ≥ 80% dessas entradas e ocorre em ≤ 2 h para contraparte nova, em empresa ativa há ≤ 90 dias ou só com pagadores novos. O EPP informa `context.inflows_24h_median`; sem mediana positiva, a regra não é avaliada. **+3** | Compara o fluxo com o histórico da empresa; não usa um piso monetário fixo. |
+| **R26 — Destinatário em rede** | O mesmo destinatário recebe de várias empresas. | Mesmo documento de contraparte com pedidos de ≥ 4 empresas em 24 h; total atual ≥ 3× a mediana dos totais recebidos em janelas de 24 h nos 30 dias anteriores (dias com atividade; exige ≥ 5 janelas ativas); não vale se for contraparte recorrente da empresa atual. **+3** | Compara a concentração de rede com o histórico do próprio destinatário. Sem amostra suficiente, a regra não é avaliada. |
 | **R27 — Sócio de muitas empresas (alerta)** | Um mesmo CPF de sócio aparece em muitas empresas da plataforma em pouco tempo. | Mesmo CPF de sócio (`context.partner_documents`) em ≥ 3 `company_id` distintos com eventos nos últimos 30 dias, contando o atual. **0** | Só alerta: aparece em `reasons` para o back-office e não altera o status. Usa a atividade que o motor viu, não o cadastro, porque onboarding e cadastro de contas ficam fora do escopo. |
 | **R30 — Saída da empresa fora do padrão (v5)** | Os sócios, somados, tiram da empresa muito mais do que ela costuma movimentar, cada um dentro do seu limite. | Saídas livres da empresa em 24 h (contando a atual; exclui pagamento coberto por reserva e execução `scheduled`) ≥ 3× a média diária dos 30 dias anteriores à janela e ≥ R$ 10.000; empresa ativada há ≥ 30 dias e com ≥ 10 saídas no período. **+2** | R13, R14 e R17–R19 olham um autor por vez, e o R3 só olha 10 min: quatro sócios abaixo do próprio limite passavam. É o único sinal que não depende de quem pede. 3× filtra a oscilação de fim de mês; o piso evita empresa pequena; sem 30 dias de histórico não há média confiável. |
 | **R31 — Destino ligado a sócio (v5)** | O dinheiro vai para empresa ou pessoa ligada a um sócio, além do CPF dele (R22). | Contraparte é CNPJ do qual um sócio da empresa também é sócio, ou CPF de sócio de outra empresa da plataforma (`context.destination_partner_documents`, quando a plataforma conhece a contraparte); valor ≥ R$ 2.000; não vale para contraparte recorrente (v6) com valor ±20%. **+2** | Desviar para a segunda empresa do mesmo sócio contorna o R22, que só compara CPF. Pesa mais que o R22 (+1) porque exige vínculo comprovado, não coincidência. R22 e R31 são o mesmo fato e compartilham teto. |
 | **R32 — Credencial trocada seguida de saída (v5)** | O autor troca senha, e-mail, telefone ou 2FA e logo depois tira dinheiro. | Em ≤ 24 h depois de `context.credential_changed_at` do autor, pedido imediato ≥ R$ 2.000; ignora autor com credencial criada há < 7 dias. **+2** (família de sessão, teto 4) | É o precursor clássico de tomada de conta e não era visto: o R16 olha controles da empresa, não credenciais do sócio. 24 h acompanha o R16; o piso é baixo porque o sinal é forte, e o teto de sessão impede que reprove sozinho. |
 
+### Perfil operacional comprovado para EPP
+
+O histórico não descreve uma padaria que precisa pagar funcionários ou fornecedores desde o primeiro mês. Para isso, o EPP mantém um perfil operacional versionado por empresa e responsabilidade, com `operation_type` `payroll` ou `operating_expenses`, e envia uma cópia no `context` do pedido agendado. Porte, faturamento e número de funcionários são sinais de capacidade, não verdades absolutas nem autorização automática: o perfil aprovado define limites explícitos por pagamento e por lote; esses valores não são calculados nem elevados pelo motor a partir dos números declarados.
+
+O perfil só neutraliza a R24 se o pedido for agendado, estiver ativo, dentro da validade (no máximo 365 dias), respeitar o teto por pagamento e o teto total do lote, indicar um beneficiário autorizado pelo cadastro validado do EPP e tiver aprovação de pelo menos dois sócios diferentes do autor. Também exige uma evidência verificada para cada dimensão: porte, faturamento mensal e quantidade de funcionários. As evidências precisam ter referências e origens distintas, registrar o valor verificado correspondente ao perfil e ter sido verificadas nos últimos 90 dias. O motor falha fechado se faltar qualquer evidência, se ela estiver vencida ou se o valor não corresponder. O EPP continua aplicando seu fluxo normal de aprovação do pedido; o perfil não desativa as outras regras.
+
+Na execução, o EPP envia a referência ativa do perfil e do lote. A R24 só é neutralizada se a referência e o total do lote coincidirem com o pedido armazenado e o Pix executado repetir valor, pagador, documento e conta destino do pedido ligado por `request_id` e `request_hash`. Se o perfil vencer, for revogado ou alterado, ou qualquer dado divergir, a R24 volta a aplicar os degraus de início frio. Cada mudança aprovada gera uma versão nova. A decisão registra `metadata.operational_profile` com o identificador, versão e lote; o snapshot com aprovações fica no `payload` JSONB do pedido.
+
+No pedido, `context.operational_profile` contém `profile_id`, `version`, `operation_type`, `status`, `company_id`, `responsibility_id`, `company_size`, `monthly_revenue_cents`, `employee_count`, `evidence`, `max_payment_cents`, `max_batch_cents`, `expires_at` e `approvals` (`partner_id` + `approved_at`). Cada item de `evidence` contém `kind` (`company_size`, `monthly_revenue` ou `employee_count`), `reference_id`, `source`, `observed_value` e `verified_at`; não se enviam nem armazenam os documentos brutos no motor. O mesmo `context` contém `batch_id`, `batch_total_cents` e `beneficiary_authorized`. Na execução, `context.operational_profile_ref` contém `profile_id`, `version` e o estado atual (`active`, `inactive` ou `revoked`), além do mesmo `batch_id` e total.
+
+O cadastro principal, a verificação documental e a validação dos votos continuam no EPP. A API aceita esses fatos apenas pelo canal interno autenticado (`INTERNAL-TOKEN`); esse token deve ficar restrito ao serviço EPP, que só deve emitir as referências de evidência após a verificação e afirmar `beneficiary_authorized` após conferir o destino em cadastro aprovado. As referências comprovam a trilha de verificação, não garantem que os documentos ou declarações sejam verdadeiros. O EPP deve confrontar fontes independentes, limitar conservadoramente os valores e revisar o perfil quando as evidências mudarem ou expirarem.
+
 ### Checagem de integridade (C1, EPP)
 
 | Checagem | Lógica | Parâmetros | Por quê |
 |---|---|---|---|
-| **C1 — Pedido ≠ voto ≠ execução (v5)** | O que foi aprovado precisa ser o que está sendo executado. | Em `vote` e `execution`, `context.request_id` e `context.request_hash` são obrigatórios (`422` se faltarem). Se o pedido não existe, está `rejected`, ou o `request_hash` difere do gravado no evento `request`, o status é `rejected` e o `RULE_HIT` `C1` grava 0 pontos e o motivo. | Nada amarrava o voto ou a execução ao conteúdo do pedido: valor ou destino podiam ser editados depois da aprovação. Não é pontuação, é consistência: um hash diferente não tem versão "meio suspeita". As demais regras seguem rodando, só para registrar os motivos. |
+| **C1 — Pedido ≠ voto ≠ execução (v5/v7.2)** | O que foi aprovado precisa ser o que está sendo executado. | Em `vote` e `execution`, `context.request_id` e `context.request_hash` são obrigatórios (`422` se faltarem). O pedido deve existir, não estar `rejected` e ter o mesmo hash; a execução também precisa repetir valor, pagador, conta pagadora, documento e conta destino. Uma execução não rejeitada por pedido. **0 pontos; força `rejected` se falhar.** | A C1 v2 confere os campos financeiros além do vínculo por hash. Uma execução divergente não recebe a isenção do perfil operacional nem a isenção de pagamento programado. |
 
 ## Como as regras viram decisão
 
@@ -145,7 +165,7 @@ O "autor" é o sócio que criou o pedido; "recorrente" é a contraparte recorren
 **Exceções e histórico.**
 
 - Se o documento do pagador for igual ao do destinatário, R5, R6 e R9 não pontuam.
-- **Pagamento programado (v5).** A isenção vale só para a **execução** (`context.event` = `execution` e `origin` = `scheduled`): ela não pontua R2, R3, R5, R33 nem R17 a R19, porque o lote da folha não deve ser rejeitado por rajada e contraparte nova, e o aparelho de quem agendou não existe na execução. O **pedido que cria o agendamento** (`event` = `request`) é avaliado com todas as regras. Sem isso, quem agenda um pagamento futuro a uma contraparte nova, de um aparelho novo, passava limpo. Na execução continuam valendo a C1 e as regras de estado da conta (R16, R20, R21, R24, R25).
+- **Pagamento programado (v5/v7.3).** A execução (`event` = `execution`, `origin` = `scheduled`) não pontua R2, R3, R5, R33 nem R17 a R19. O pedido (`event` = `request`) continua passando pelas outras regras. A R24 só é neutralizada para folha ou despesa operacional agendada com perfil ativo, três evidências recentes e coerentes, limites aprovados, destino autorizado e execução exatamente igual ao pedido. Sem perfil válido, vencido, revogado ou com divergência, a R24 segue valendo.
 - O histórico de confiança (R1, R4, R5, R7, R17, R33 e a contraparte recorrente) exclui apenas Pix `rejected`. O motor não recebe o resultado do 2FA, e contar só os `approved` faria o cliente do aluguel cair em 2FA todo mês.
 - O histórico de rajada e concentração (R2, R3, R8, R9, R11, R12, R28, R29) considera qualquer status, porque tentativas rejeitadas também revelam o padrão.
 
@@ -235,9 +255,9 @@ Valida, analisa e registra um evento Pix, retornando a decisão. É idempotente 
 - `source_account`: agência, número, data de abertura e `owner.document_number` (CPF ou CNPJ) do pagador.
 - `destination_account`: participante (ISPB), agência, número, data de abertura e `owner.document_number` do destinatário. No EPP, a data de abertura é opcional.
 - `source`: `device_id`, `channel`, `ip` e `geolocation` (latitude e longitude, opcional).
-- `context` (opcional, enviado pelo EPP): `event` (`request`, `vote` ou `execution`), `origin` (`immediate` ou `scheduled`), `company_id`, `author_id`, `responsibility_id` e os fatos que só o EPP conhece (saldo livre, limites, ativação da conta, mudanças de controle, liberação de reserva, documentos dos sócios). **Novos na v5:** `request_id` e `request_hash` (obrigatórios em `vote` e `execution`), `credential_changed_at` (do autor, opcional) e `destination_partner_documents` (opcional).
+- `context` (opcional, enviado pelo EPP): `event` (`request`, `vote` ou `execution`), `origin` (`immediate` ou `scheduled`), `company_id`, `author_id`, `responsibility_id` e os fatos que só o EPP conhece (saldo livre, limites, ativação da conta, mudanças de controle, liberação de reserva e documentos dos sócios). `request_id` e `request_hash` são obrigatórios em `vote` e `execution`; `credential_changed_at` e `destination_partner_documents` são opcionais. Para uma folha ou despesa operacional autorizada, o pedido agendado pode incluir `operational_profile` com tipo, porte, faturamento, número de funcionários, três evidências recentes e distintas, limites por pagamento/lote, validade e aprovações; também inclui `batch_id`, `batch_total_cents` e `beneficiary_authorized: true`. A execução correspondente inclui `operational_profile_ref` (ID, versão e estado atual) e o mesmo lote/total.
 
-**Resposta** (`key`, `status`, `metadata`): `metadata` traz `risk_score`, `reasons` (as regras acionadas com pontos e valores observados), `rules_version` e `recommended_actions` (lista, pode ser vazia).
+**Resposta** (`key`, `status`, `metadata`): `metadata` traz `risk_score`, `reasons` (as regras acionadas com pontos e valores observados), `rules_version`, `ruleset_hash` e `recommended_actions` (lista, pode ser vazia).
 
 **Status:**
 
@@ -250,9 +270,9 @@ Valida, analisa e registra um evento Pix, retornando a decisão. É idempotente 
 
 ### `GET /pix/transaction/{id}`
 
-Consulta a análise registrada para o `id` do evento (não o `key`). Somente leitura.
+Consulta o evento Pix armazenado e sua análise pelo `id` do evento (não o `key`). Somente leitura.
 
-- `200`: `key`, `status` e `metadata` da análise.
+- `200`: `key`, `status`, `metadata` e `transaction` com o payload original gravado.
 - `404`: não existe análise para o `id` informado.
 
 ## Banco de dados
@@ -261,9 +281,19 @@ O sistema usa PostgreSQL e mantém o evento, a análise e as regras acionadas.
 
 ### `PIX_TRANSACTION`
 
-Armazena o evento recebido: `id` (chave primária e idempotência), `payload_hash`, valor em centavos, data da transação em UTC, dados normalizados do pagador e do destinatário (documento só com dígitos, conta, data de abertura), `destination_account_key` (participante, agência e conta), dispositivo, canal, IP, geolocalização opcional, campos do EPP (`event_type`, `origin`, `company_id`, `author_id`, `responsibility_id`), o `context` em `jsonb` para reproduzir a decisão, o payload original e a data de recebimento. Índices por documento do pagador, conta destino, documento do destinatário, dispositivo e autor, sempre com `transaction_date`, apoiam as consultas de histórico.
+Armazena todo evento que passou pela validação: `id` (chave primária e idempotência), `payload_hash`, valor em centavos, data da transação em UTC, dados normalizados do pagador e do destinatário, dispositivo, canal, IP, geolocalização opcional, campos EPP, `context` para reproduzir a decisão, payload original e data de recebimento. `400`/`422` são recusas de validação e não viram eventos; aprovações, exigências de 2FA e rejeições de regra são persistidas. O snapshot versionado de `context.operational_profile`, incluindo referências e valores verificados das evidências, fica junto ao pedido para auditoria; documentos brutos e cadastro principal permanecem no EPP. Índices por pagador, destino, dispositivo e autor apoiam as consultas de histórico.
+
+O Compose mantém os dados em um volume nomeado (`qihackathon-validacao-de-pix-postgres`), portanto recriar o container não recria o histórico. Em um banco novo, a imagem aplica `database.sql` e as migrations numeradas na inicialização. Em instalações que já tinham um volume antes desse bootstrap, faça backup e aplique as migrations ainda não executadas em ordem, por exemplo:
+
+```bash
+for migration in database/migrations/*.sql; do
+  docker compose exec -T db psql -U bootcamp -d epp_conta_compartilhada < "$migration"
+done
+```
 
 Requisições recusadas na validação (`400` ou `422`) não viram evento nem análise; todo evento válido fica gravado e consultável pelo `GET`.
+
+Reenvio idêntico (`200`) retorna a análise existente; conflito de `id` (`409`) e payload inválido (`400`/`422`) não criam uma linha de tentativa. O histórico abaixo representa eventos válidos recebidos pela API.
 
 **Novos na v5:** colunas `request_id` e `request_hash` (para a C1, com índice em `request_id`) e índice por `company_id` com `transaction_date` (para R20 acumulado e R30).
 
@@ -271,13 +301,46 @@ Requisições recusadas na validação (`400` ou `422`) não viram evento nem an
 
 ### `FRAUD_ANALYSIS`
 
-Uma única análise por evento: `key` (UUID), `transaction_id` (referência única ao evento), `status`, `risk_score`, `rules_version` e `analyzed_at`.
+Uma única análise por evento: `key` (UUID), `transaction_id` (referência única ao evento), `status`, `risk_score`, `rules_version`, `ruleset_hash` e `analyzed_at`. A versão e o hash identificam a configuração que produziu a decisão.
 
 ### `RULE_HIT`
 
 Cada regra acionada: identificador, chave da análise, código da regra (R1–R33 e C1), pontos antes do teto e detalhe dos valores observados e parâmetros usados.
 
 Relacionamentos: cada `PIX_TRANSACTION` recebe uma `FRAUD_ANALYSIS`; uma análise tem zero ou várias entradas em `RULE_HIT`.
+
+### Consultar o histórico de um pagador no banco
+
+A API oferece leitura do evento e da análise por `id` em `GET /pix/transaction/{id}`. Para consultar várias transações de um documento sem acessar uma rota por evento, a migration `database/migrations/003_history_view.sql` mantém a view somente de leitura `v_historico_pagador` e um índice em `rule_hits.analysis_key`.
+
+```bash
+docker compose exec -T db psql -U bootcamp -d epp_conta_compartilhada \
+  -f - < database/migrations/003_history_view.sql
+```
+
+Conte rejeições nos últimos 60 minutos:
+
+```sql
+SELECT count(*)
+FROM v_historico_pagador
+WHERE source_document = '<doc>'
+  AND status = 'rejected'
+  AND transaction_date BETWEEN now() - interval '60 minutes' AND now();
+```
+
+Veja o extrato mais recente, incluindo a data de processamento (`created_at`), a decisão e as regras que a explicam:
+
+```sql
+SELECT id, transaction_date, created_at, amount, destination_document,
+       status, risk_score, dinheiro_liberado, regras
+FROM v_historico_pagador
+WHERE source_document = '<doc>'
+  AND transaction_date BETWEEN now() - interval '90 days' AND now()
+ORDER BY transaction_date DESC
+LIMIT 100;
+```
+
+`dinheiro_liberado` só é verdadeiro para `approved`; `two_factor_required` ainda aguarda confirmação. Uma rejeição C1 pode ter `risk_score = 0`: C1 força `rejected` sem somar pontos, e a coluna `regras` mostra o motivo. A view cobre transações válidas; tentativas com `409` ou `400`/`422` não são registradas.
 
 ## Idempotência e concorrência
 
@@ -289,20 +352,21 @@ As janelas históricas usam a `transaction_date` do evento, consideram registros
 
 ## Como rodar e testar
 
-Requisitos: Docker e Docker Compose. O projeto parte do Base Service (Python, FastAPI, PostgreSQL), com as camadas rota, serviço e repositório.
+Requisitos: Docker e Docker Compose. O projeto usa a estrutura do Base Service (Python, FastAPI, PostgreSQL): `PixResource` é a fronteira HTTP/rota e valida o DTO; `PixController` faz o papel da camada de serviço, coordenando idempotência, histórico, motor e gravação; `PixRepository` concentra SQL, locks e persistência. O motor e as regras puras não dependem de HTTP ou SQL. O middleware mantém uma sessão por requisição e o repositório grava evento, decisão e hits na mesma transação.
 
 ```bash
 # sobe a API e o PostgreSQL
 docker compose up --build
 ```
 
-A documentação interativa da API fica em `http://localhost:8000/docs`.
+A documentação interativa da API fica em `http://localhost:3000/docs` (ou na porta definida por `API_PORT`).
 
 Exemplo de requisição (payload do desafio):
 
 ```bash
-curl -X POST http://localhost:8000/pix/transaction \
+curl -X POST http://localhost:3000/pix/transaction \
   -H "Content-Type: application/json" \
+  -H "INTERNAL-TOKEN: default_token" \
   -d '{
     "id": "pix-000123",
     "amount": 150000,
@@ -327,19 +391,26 @@ curl -X POST http://localhost:8000/pix/transaction \
 Com o banco vazio, a resposta é `201` com `status` `two_factor_required` e `risk_score` 2 (só o R6 dispara). Repetir o mesmo corpo devolve `200` com a mesma análise; mudar qualquer campo mantendo o `id` devolve `409`. Para consultar:
 
 ```bash
-curl http://localhost:8000/pix/transaction/pix-000123
+curl http://localhost:3000/pix/transaction/pix-000123 \
+  -H "INTERNAL-TOKEN: default_token"
 ```
 
 Testes:
 
 ```bash
-docker compose run --rm api pytest
-python run_api_tests.py /caminho/para/pix_api_tests.json --base-url http://localhost:3000
+# em outro terminal, com Docker Compose ativo: instala dependências de dev e roda as regras puras
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+python -m pytest tests/test_rules_*.py -q
+
+# cenários HTTP reais, com API e PostgreSQL ativos
+python run_api_tests.py pix_api_tests.json --base-url http://localhost:3000
 ```
 
-O runner da API aceita os placeholders e expande os passos `repeat` do JSON; execute-o com a API e o banco ativos.
+O runner da API aceita os placeholders, expande passos `repeat` e testa POST e GET com o token interno padrão; use `--token` ou `INTERNAL_TOKEN` quando ele tiver sido alterado. Ele valida regras, idempotência, consulta do evento armazenado e contratos HTTP.
 
-Cada regra é uma função pura (evento e histórico entram, pontos e motivo saem), então os testes unitários das regras e da combinação (tetos e faixas) rodam sem banco. Os testes de integração usam o PostgreSQL e conferem idempotência (`200` e `409`), `404` no GET e a rajada paralela do mesmo pagador.
+Cada regra é uma função pura (evento e histórico entram, pontos e motivo saem), então os testes unitários das regras e da combinação (tetos e faixas) rodam sem banco. O runner de API usa o PostgreSQL para conferir decisão, idempotência (`200` e `409`), recuperação do payload original pelo GET, `404` e cenários de concorrência. O POST mantém a resposta `key`, `status` e `metadata`; o GET retorna esses campos e também `transaction` com o evento original gravado.
 
 ### Cenários de aceitação
 

@@ -1,5 +1,5 @@
 {
-  "description": "Cenários da API antifraude Pix (RFC v7): um por regra, mais C1, legítimos e contrato. Placeholders e formato dos steps estão documentados em run_api_tests.py.",
+  "description": "Cenários da API antifraude Pix (RFC v7.3): um por regra, mais C1, legítimos, persistência, consulta e contrato. Placeholders e formato dos steps estão documentados em run_api_tests.py.",
   "scenarios": [
     {
       "id": "R1",
@@ -3264,7 +3264,7 @@
     {
       "id": "R25",
       "rule": "R25",
-      "title": "Passagem entrada -> saída: 87% das entradas saem em 1 h para destino novo",
+      "title": "Passagem: entradas de 24 h ≥ 3× a mediana; 80% sai em 1 h para destino novo",
       "steps": [
         {
           "name": "pedido",
@@ -3302,7 +3302,8 @@
               "author_id": "socio-a",
               "account_activated_at": "{{now-40d}}",
               "inflows_24h": 1500000,
-              "last_inflow_at": "{{now-1h}}"
+              "last_inflow_at": "{{now-1h}}",
+              "inflows_24h_median": 300000
             }
           },
           "expect": {
@@ -3320,8 +3321,198 @@
     {
       "id": "R26",
       "rule": "R26",
-      "title": "Destinatário em rede: mesmo CPF recebendo de 4 empresas em 24 h",
+      "title": "Destinatário em rede: 4 empresas e volume ≥ 3× a mediana de 24 h",
       "steps": [
+        {
+          "name": "mediana histórica dia 1",
+          "request": {
+            "id": "{{id:r26_base_1}}",
+            "amount": 100000,
+            "transaction_date": "{{now-10d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 2",
+          "request": {
+            "id": "{{id:r26_base_2}}",
+            "amount": 100000,
+            "transaction_date": "{{now-8d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 3",
+          "request": {
+            "id": "{{id:r26_base_3}}",
+            "amount": 100000,
+            "transaction_date": "{{now-6d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 4",
+          "request": {
+            "id": "{{id:r26_base_4}}",
+            "amount": 100000,
+            "transaction_date": "{{now-4d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
+        {
+          "name": "mediana histórica dia 5",
+          "request": {
+            "id": "{{id:r26_base_5}}",
+            "amount": 100000,
+            "transaction_date": "{{now-2d}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:s_base}}",
+              "owner": {
+                "document_number": "{{cnpj:base}}"
+              },
+              "opening_date": "2020-01-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:alvo}}",
+              "owner": {
+                "document_number": "{{doc:alvo}}"
+              },
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {
+              "device_id": "{{id:dev-base}}",
+              "channel": "mobile",
+              "ip": "177.10.0.1"
+            },
+            "context": {
+              "event": "request",
+              "origin": "immediate",
+              "company_id": "{{id:emp_base}}",
+              "author_id": "socio-base",
+              "account_activated_at": "{{now-200d}}"
+            }
+          }
+        },
         {
           "name": "empresa 1",
           "request": {
@@ -4615,7 +4806,145 @@
       ]
     },
     {
-      "id": "API_idempotencia",
+      "id": "API_R24_perfil_com_evidencias",
+      "rule": "R24",
+      "title": "Perfil operacional: evidência coerente neutraliza somente a R24; divergência conserva o degrau",
+      "steps": [
+        {
+          "name": "despesa operacional agendada com evidências recentes e coerentes",
+          "request": {
+            "id": "{{id:valid}}",
+            "amount": 3000000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:src-valid}}",
+              "owner": {"document_number": "{{cnpj:company-valid}}"},
+              "opening_date": "2026-10-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest-valid}}",
+              "owner": {"document_number": "{{doc:vendor-valid}}"},
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {"device_id": "{{id:device}}", "channel": "mobile", "ip": "177.10.0.1"},
+            "context": {
+              "event": "request",
+              "origin": "scheduled",
+              "company_id": "{{id:company-valid}}",
+              "author_id": "author-valid",
+              "responsibility_id": "operating-expenses",
+              "account_activated_at": "{{now-10d}}",
+              "beneficiary_authorized": true,
+              "batch_id": "batch-valid",
+              "batch_total_cents": 3000000,
+              "operational_profile": {
+                "profile_id": "profile-valid",
+                "version": 1,
+                "operation_type": "operating_expenses",
+                "status": "active",
+                "company_id": "{{id:company-valid}}",
+                "responsibility_id": "operating-expenses",
+                "company_size": "small",
+                "monthly_revenue_cents": 5000000,
+                "employee_count": 18,
+                "evidence": [
+                  {"kind": "company_size", "reference_id": "size-valid", "source": "company-registry", "observed_value": "small", "verified_at": "{{now-1d}}"},
+                  {"kind": "monthly_revenue", "reference_id": "revenue-valid", "source": "tax-registry", "observed_value": 5000000, "verified_at": "{{now-1d}}"},
+                  {"kind": "employee_count", "reference_id": "employees-valid", "source": "payroll-registry", "observed_value": 18, "verified_at": "{{now-1d}}"}
+                ],
+                "max_payment_cents": 3500000,
+                "max_batch_cents": 4000000,
+                "approvals": [
+                  {"partner_id": "partner-one", "approved_at": "{{now-1d}}"},
+                  {"partner_id": "partner-two", "approved_at": "{{now-1d}}"}
+                ],
+                "expires_at": "{{now+30d}}"
+              }
+            }
+          },
+          "expect": {"status": "approved", "rules": [], "score": 0, "profile_exempt": true}
+        },
+        {
+          "name": "faturamento comprovado diverge do perfil declarado",
+          "request": {
+            "id": "{{id:mismatch}}",
+            "amount": 3000000,
+            "transaction_date": "{{now}}",
+            "source_account": {
+              "participant": "00000001",
+              "branch": "0001",
+              "account_number": "{{acct:src-mismatch}}",
+              "owner": {"document_number": "{{cnpj:company-mismatch}}"},
+              "opening_date": "2026-10-01T00:00:00Z"
+            },
+            "destination_account": {
+              "participant": "00000002",
+              "branch": "0001",
+              "account_number": "{{acct:dest-mismatch}}",
+              "owner": {"document_number": "{{doc:vendor-mismatch}}"},
+              "opening_date": "2019-01-01T00:00:00Z"
+            },
+            "source": {"device_id": "{{id:device}}", "channel": "mobile", "ip": "177.10.0.1"},
+            "context": {
+              "event": "request",
+              "origin": "scheduled",
+              "company_id": "{{id:company-mismatch}}",
+              "author_id": "author-mismatch",
+              "responsibility_id": "operating-expenses",
+              "account_activated_at": "{{now-10d}}",
+              "beneficiary_authorized": true,
+              "batch_id": "batch-mismatch",
+              "batch_total_cents": 3000000,
+              "operational_profile": {
+                "profile_id": "profile-mismatch",
+                "version": 1,
+                "operation_type": "operating_expenses",
+                "status": "active",
+                "company_id": "{{id:company-mismatch}}",
+                "responsibility_id": "operating-expenses",
+                "company_size": "small",
+                "monthly_revenue_cents": 5000000,
+                "employee_count": 18,
+                "evidence": [
+                  {"kind": "company_size", "reference_id": "size-mismatch", "source": "company-registry", "observed_value": "small", "verified_at": "{{now-1d}}"},
+                  {"kind": "monthly_revenue", "reference_id": "revenue-mismatch", "source": "tax-registry", "observed_value": 9000000, "verified_at": "{{now-1d}}"},
+                  {"kind": "employee_count", "reference_id": "employees-mismatch", "source": "payroll-registry", "observed_value": 18, "verified_at": "{{now-1d}}"}
+                ],
+                "max_payment_cents": 3500000,
+                "max_batch_cents": 4000000,
+                "approvals": [
+                  {"partner_id": "partner-one", "approved_at": "{{now-1d}}"},
+                  {"partner_id": "partner-two", "approved_at": "{{now-1d}}"}
+                ],
+                "expires_at": "{{now+30d}}"
+              }
+            }
+          },
+          "expect": {"status": "two_factor_required", "rules": ["R24"], "score": 2, "profile_exempt": false}
+        }
+      ]
+    },
+    {
+      "id": "API_get_404",
+      "rule": "API",
+      "title": "GET de Pix inexistente retorna 404",
+      "steps": [
+        {
+          "name": "consulta de ID inexistente",
+          "method": "GET",
+          "id": "{{id:missing}}",
+          "expect": {
+            "http": 404
+          }
+        }
+      ]
+    },
+    {
+      "id": "API_idempotencia_e_consulta",
       "rule": "API",
       "title": "Idempotência: mesmo id e payload -> 200; mesmo id e payload diferente -> 409",
       "steps": [
@@ -4687,6 +5016,17 @@
           "expect": {
             "http": 200,
             "same_key_as_step": 0
+          }
+        },
+        {
+          "name": "consulta recupera transação e decisão gravadas",
+          "method": "GET",
+          "id": "{{id:a}}",
+          "expect": {
+            "http": 200,
+            "status": "approved",
+            "same_key_as_step": 0,
+            "transaction_id": "{{id:a}}"
           }
         },
         {

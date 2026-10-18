@@ -8,7 +8,7 @@ def register_session_manager_middleware(application: FastAPI) -> None:
 
     - rollback se a requisição terminar em exceção;
     - close sempre, no `finally`, devolvendo a conexão ao pool;
-    - commit nunca: quem decide que o trabalho terminou é o controller.
+    - commit nunca: o repositório confirma a gravação completa da análise.
 
     A sessão é criada sob demanda pelo contexto, na primeira vez que um
     controller a pede. Rotas que não usam banco (`/`, `/health_check`) não
@@ -25,10 +25,11 @@ def register_session_manager_middleware(application: FastAPI) -> None:
 
         try:
             response = await call_next(request)
+            context.finalize(response.status_code)
+            return response
         except Exception:
             # Evita devolver ao pool uma conexão com transação abortada.
-            if context.db_session is not None:
-                context.db_session.rollback()
+            context.finalize(500)
             raise
         finally:
             if context.db_session is not None:
@@ -36,5 +37,3 @@ def register_session_manager_middleware(application: FastAPI) -> None:
 
             # Fora de uma requisição, pedir o contexto deve falhar.
             clear_context()
-
-        return response

@@ -1,13 +1,13 @@
 from fastapi import Response
 
 from controllers.pix_controller import PixController
-from schemas.pix_schema import PixTransactionInput, PixTransactionOutput
+from schemas.pix_schema import PixTransactionDetailsOutput, PixTransactionInput, PixTransactionOutput
 
 class PixResource:
     def __init__(self):
         self.controller = PixController()
 
-    async def on_post_pix(
+    def on_post_pix(
         self,
         payload: PixTransactionInput,
         response: Response,
@@ -19,7 +19,7 @@ class PixResource:
         response.status_code = result.pop("_http_status", 201)
         return PixTransactionOutput(**result)
 
-    async def on_get_pix(self, id: str) -> PixTransactionOutput:
-        """Consulta a análise antifraude gravada através do ID do Pix."""
+    def on_get_pix(self, id: str) -> PixTransactionDetailsOutput:
+        """Consulta o evento Pix armazenado e sua análise através do ID."""
         result = self.controller.get_transaction_analysis(id)
-        return PixTransactionOutput(**result)
+        return PixTransactionDetailsOutput(**result)
