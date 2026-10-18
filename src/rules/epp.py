@@ -12,7 +12,7 @@ from rules.common import (
     is_scheduled_execution, payload, recurrent, source_data, source_document, transaction_datetime,
     window,
 )
-from rules.operational_profile import authorized_payroll_profile
+from rules.operational_profile import authorized_operational_profile, authorized_payroll_profile
 
 RuleResult = tuple[int, str] | None
 BRAZIL_TIMEZONE = ZoneInfo("America/Sao_Paulo")
@@ -311,6 +311,36 @@ def r24_v2(event: dict, profile: dict, context: dict) -> RuleResult:
     if not immature or authorized_payroll_profile(event, context, settings) is not None:
         return None
     points = 2 if amount >= settings['R24_LARGE_CENTS'] else 1
+    return points, f"Company is immature with {profile['outgoing_count']} prior outflows; amount is {amount} cents."
+
+
+def r24_v3(event: dict, profile: dict, context: dict) -> RuleResult:
+    """R24 with evidence-backed operational profiles for payroll and expenses."""
+    return _r24_with_profile(event, profile, context, authorized_operational_profile)
+
+
+def _r24_with_profile(event: dict, profile: dict, context: dict, profile_validator) -> RuleResult:
+    settings = context.get("rule_parameters") or params.for_rule("R24")
+    epp = event_context(event)
+    amount = int(event["amount"])
+    if (
+        epp.get("event") == "vote"
+        or destination_document(event) == source_document(event)
+        or amount < settings["R24_SMALL_CENTS"]
+    ):
+        return None
+    activated = epp.get("account_activated_at")
+    if activated:
+        company_age = event_datetime(event) - _date(activated)
+        immature = (
+            company_age <= timedelta(days=settings["R24_MATURE_AGE_DAYS"])
+            or profile["outgoing_count"] < settings["R24_MATURE_OUTFLOWS"]
+        )
+    else:
+        immature = True
+    if not immature or profile_validator(event, context, settings) is not None:
+        return None
+    points = 2 if amount >= settings["R24_LARGE_CENTS"] else 1
     return points, f"Company is immature with {profile['outgoing_count']} prior outflows; amount is {amount} cents."
 
 

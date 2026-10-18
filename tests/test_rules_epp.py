@@ -1,6 +1,11 @@
 from datetime import timedelta
 
-from rules.epp import r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r30, r31, r32
+import pytest
+from pydantic import ValidationError
+
+from rules.epp import r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r24_v3, r25, r26, r27, r30, r31, r32
+from rules.registry import RULE_IMPLEMENTATION_REGISTRY
+from schemas.pix_schema import OperationalProfileSchema
 from tests.rule_support import NOW, epp_event, event, profile, transaction
 
 
@@ -110,6 +115,132 @@ def test_r24_new_company_outflow_has_one_or_two_points_by_amount():
     self_payment = epp_event(amount=500_000, account_activated_at=NOW - timedelta(days=30))
     self_payment["destination_account"]["owner"]["document_number"] = "11111111111"
     assert r24(self_payment, profile(), {}) is None
+
+
+def _operational_profile(*, evidence_age_days=30, operation_type="operating_expenses"):
+    evidence = [
+        {
+            "kind": kind,
+            "reference_id": f"verification-{kind}",
+            "source": f"registry-{kind}",
+            "observed_value": {
+                "company_size": "small",
+                "monthly_revenue": 5_000_000,
+                "employee_count": 18,
+            }[kind],
+            "verified_at": (NOW - timedelta(days=evidence_age_days)).isoformat(),
+        }
+        for kind in ("company_size", "monthly_revenue", "employee_count")
+    ]
+    return {
+        "profile_id": "profile-a",
+        "version": 1,
+        "operation_type": operation_type,
+        "status": "active",
+        "company_id": "company-a",
+        "responsibility_id": "operating-expenses",
+        "company_size": "small",
+        "monthly_revenue_cents": 5_000_000,
+        "employee_count": 18,
+        "evidence": evidence,
+        "max_payment_cents": 600_000,
+        "max_batch_cents": 1_000_000,
+        "approvals": [
+            {"partner_id": "partner-a", "approved_at": (NOW - timedelta(days=1)).isoformat()},
+            {"partner_id": "partner-b", "approved_at": (NOW - timedelta(days=1)).isoformat()},
+        ],
+        "expires_at": (NOW + timedelta(days=30)).isoformat(),
+    }
+
+
+def test_r24_v3_accepts_verified_profile_for_scheduled_operating_expense():
+    operation = _operational_profile()
+    OperationalProfileSchema.model_validate(operation)
+    current = epp_event(
+        amount=500_000,
+        origin="scheduled",
+        account_activated_at=NOW - timedelta(days=10),
+        responsibility_id="operating-expenses",
+        operational_profile=operation,
+        beneficiary_authorized=True,
+        batch_id="batch-a",
+        batch_total_cents=500_000,
+    )
+    assert r24_v3(current, profile(), {}) is None
+
+
+def test_active_ruleset_registers_r24_v3():
+    assert RULE_IMPLEMENTATION_REGISTRY["R24"]["v3"] is r24_v3
+
+
+def test_r24_v3_fails_closed_when_operational_evidence_is_missing_or_stale():
+    missing = _operational_profile()
+    missing.pop("evidence")
+    with pytest.raises(ValidationError):
+        OperationalProfileSchema.model_validate(missing)
+
+    stale = _operational_profile(evidence_age_days=91)
+    current = epp_event(
+        amount=500_000,
+        origin="scheduled",
+        account_activated_at=NOW - timedelta(days=10),
+        responsibility_id="operating-expenses",
+        operational_profile=stale,
+        beneficiary_authorized=True,
+        batch_id="batch-a",
+        batch_total_cents=500_000,
+    )
+    assert r24_v3(current, profile(), {})[0] == 1
+
+
+def test_r24_v3_revalidates_profile_and_exact_payment_on_execution():
+    operation = _operational_profile()
+    request = epp_event(
+        amount=500_000,
+        origin="scheduled",
+        account_activated_at=NOW - timedelta(days=10),
+        responsibility_id="operating-expenses",
+        operational_profile=operation,
+        beneficiary_authorized=True,
+        batch_id="batch-a",
+        batch_total_cents=500_000,
+        request_hash="request-hash",
+    )
+    current = epp_event(
+        "execution",
+        amount=500_000,
+        origin="scheduled",
+        account_activated_at=NOW - timedelta(days=10),
+        responsibility_id="operating-expenses",
+        request_id="request-a",
+        request_hash="request-hash",
+        operational_profile_ref={"profile_id": "profile-a", "version": 1, "status": "active"},
+        batch_id="batch-a",
+        batch_total_cents=500_000,
+    )
+    request["id"] = "request-a"
+    wrapper = {"id": "request-a", "payload": request}
+    context = {"request_event": wrapper, "request_status": "approved", "has_prior_execution": False}
+    assert r24_v3(current, profile(), context) is None
+
+    current["amount"] = 500_001
+    assert r24_v3(current, profile(), context)[0] == 1
+
+
+def test_r24_v3_rejects_evidence_that_does_not_match_claimed_values():
+    operation = _operational_profile()
+    operation["evidence"][1]["observed_value"] = 50_000_000
+    current = epp_event(
+        amount=500_000,
+        origin="scheduled",
+        account_activated_at=NOW - timedelta(days=10),
+        responsibility_id="operating-expenses",
+        operational_profile=operation,
+        beneficiary_authorized=True,
+        batch_id="batch-a",
+        batch_total_cents=500_000,
+    )
+    assert r24_v3(current, profile(), {})[0] == 1
 
 
 def test_r25_external_inflow_to_new_destination_within_two_hours():

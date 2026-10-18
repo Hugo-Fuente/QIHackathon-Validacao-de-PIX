@@ -66,6 +66,9 @@ class PixController:
 
     def get_transaction_analysis(self, transaction_id: str) -> dict:
         session = get_context().get_or_create_session()
+        transaction = self.repository.get_transaction_by_id(session, transaction_id)
+        if not transaction:
+            raise NotFoundError("Transação Pix não encontrada.")
         decision = self.repository.get_decision_by_transaction_id(session, transaction_id)
         if not decision:
             raise NotFoundError("Análise não encontrada para este ID de Pix.")
@@ -73,4 +76,5 @@ class PixController:
             "key": str(decision.key),
             "status": decision.status,
             "metadata": decision.metadata_ or {},
+            "transaction": dict(transaction.payload or {}),
         }

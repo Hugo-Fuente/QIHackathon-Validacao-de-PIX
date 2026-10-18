@@ -3,7 +3,7 @@
 from collections.abc import Callable
 
 from rules.configuration import ACTIVE_RULESET, RULE_CODES, RuleSetConfigurationError
-from rules.epp import EPP_RULES, r24_v2
+from rules.epp import EPP_RULES, r24_v2, r24_v3
 from rules.integrity import c1, c1_v2
 from rules.pix_core import CORE_RULES
 
@@ -14,7 +14,7 @@ RuleFunction = Callable[[dict, dict, dict], tuple[int, str] | None]
 # name, then select that name in the active rule-set configuration.
 ALTERNATE_RULE_IMPLEMENTATIONS: dict[str, dict[str, RuleFunction]] = {
     "C1": {"v2": c1_v2},
-    "R24": {"v2": r24_v2},
+    "R24": {"v2": r24_v2, "v3": r24_v3},
 }
 
 

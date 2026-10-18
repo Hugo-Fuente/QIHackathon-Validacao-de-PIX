@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "ruleset_version": "v7.2",
+  "ruleset_version": "v7.3",
   "parameters": {
     "shared": {
       "CENTS_PER_REAL": 100,
@@ -88,6 +88,7 @@
       "R24_LARGE_CENTS": 2000000,
       "R24_MATURE_AGE_DAYS": 30,
       "R24_MATURE_OUTFLOWS": 10,
+      "R24_OPERATIONAL_EVIDENCE_MAX_AGE_DAYS": 90,
       "R24_OPERATIONAL_PROFILE_MAX_AGE_DAYS": 365,
       "R24_OPERATIONAL_PROFILE_MIN_APPROVERS": 2,
       "R24_SMALL_CENTS": 500000
@@ -248,7 +249,7 @@
     "R21": "v1",
     "R22": "v1",
     "R23": "v1",
-    "R24": "v2",
+    "R24": "v3",
     "R25": "v1",
     "R26": "v1",
     "R27": "v1",

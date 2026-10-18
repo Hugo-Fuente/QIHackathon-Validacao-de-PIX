@@ -15,7 +15,21 @@ from utils.pix_data import parse_datetime
 
 
 def authorized_payroll_profile(event: dict, context: dict, settings: dict) -> dict | None:
-    """Return audit metadata when this scheduled payroll payment fits its approved profile.
+    """Keep the published R24 v2 payroll-profile behavior available."""
+    return _authorized_profile(event, context, settings, {"payroll"}, require_evidence=False)
+
+
+def authorized_operational_profile(event: dict, context: dict, settings: dict) -> dict | None:
+    """Return audit metadata for a verified, approved, scheduled EPP operation."""
+    return _authorized_profile(
+        event, context, settings, {"payroll", "operating_expenses"}, require_evidence=True
+    )
+
+
+def _authorized_profile(
+    event: dict, context: dict, settings: dict, operation_types: set[str], *, require_evidence: bool
+) -> dict | None:
+    """Validate a scheduled payment against its immutable EPP profile snapshot.
 
     The EPP is the authority for profile enrollment, approval quorum and beneficiary-roster
     membership. Its authenticated context is persisted with the request for later replay.
@@ -27,7 +41,9 @@ def authorized_payroll_profile(event: dict, context: dict, settings: dict) -> di
 
     if event_type == "request":
         profile = epp.get("operational_profile")
-        if not _profile_is_valid(event, epp, profile, settings, event_datetime(event)):
+        if not _profile_is_valid(
+            event, epp, profile, settings, event_datetime(event), operation_types, require_evidence
+        ):
             return None
         return _audit_profile(profile, epp)
 
@@ -66,12 +82,17 @@ def authorized_payroll_profile(event: dict, context: dict, settings: dict) -> di
         return None
     if epp.get("batch_total_cents") != original_context.get("batch_total_cents"):
         return None
-    if not _profile_is_valid(event, original_context, profile, settings, event_datetime(event)):
+    if not _profile_is_valid(
+        event, original_context, profile, settings, event_datetime(event), operation_types, require_evidence
+    ):
         return None
     return _audit_profile(profile, original_context)
 
 
-def _profile_is_valid(event: dict, epp: dict, profile: object, settings: dict, at) -> bool:
+def _profile_is_valid(
+    event: dict, epp: dict, profile: object, settings: dict, at,
+    operation_types: set[str], require_evidence: bool,
+) -> bool:
     if not isinstance(profile, dict):
         return False
     profile_id = profile.get("profile_id")
@@ -79,7 +100,7 @@ def _profile_is_valid(event: dict, epp: dict, profile: object, settings: dict, a
     if (
         not isinstance(profile_id, str) or not profile_id.strip()
         or type(version) is not int or version < 1
-        or profile.get("operation_type") != "payroll"
+        or profile.get("operation_type") not in operation_types
         or profile.get("status") != "active"
         or profile.get("company_id") != epp.get("company_id")
         or not epp.get("company_id")
@@ -87,6 +108,8 @@ def _profile_is_valid(event: dict, epp: dict, profile: object, settings: dict, a
         or not epp.get("responsibility_id")
         or epp.get("beneficiary_authorized") is not True
     ):
+        return False
+    if require_evidence and not _evidence_is_valid(profile, at, settings):
         return False
 
     max_payment = profile.get("max_payment_cents")
@@ -130,6 +153,63 @@ def _profile_is_valid(event: dict, epp: dict, profile: object, settings: dict, a
     ):
         return False
     return True
+
+
+def _evidence_is_valid(profile: dict, at, settings: dict) -> bool:
+    expected_kinds = {"company_size", "monthly_revenue", "employee_count"}
+    evidence = profile.get("evidence")
+    if (
+        profile.get("company_size") not in {"micro", "small", "medium", "large"}
+        or type(profile.get("monthly_revenue_cents")) is not int
+        or profile["monthly_revenue_cents"] <= 0
+        or type(profile.get("employee_count")) is not int
+        or profile["employee_count"] <= 0
+        or not isinstance(evidence, list)
+        or len(evidence) != len(expected_kinds)
+    ):
+        return False
+
+    kinds: set[str] = set()
+    references: set[str] = set()
+    sources: set[str] = set()
+    for item in evidence:
+        if not isinstance(item, dict):
+            return False
+        kind = item.get("kind")
+        reference_id = item.get("reference_id")
+        source = item.get("source")
+        observed_value = item.get("observed_value")
+        if (
+            kind not in expected_kinds or kind in kinds
+            or not isinstance(reference_id, str) or not reference_id.strip() or reference_id in references
+            or not isinstance(source, str) or not source.strip() or source in sources
+            or not _evidence_matches_claim(kind, observed_value, profile)
+        ):
+            return False
+        try:
+            verified_at = parse_datetime(item["verified_at"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            return False
+        if (
+            verified_at > at
+            or at - verified_at > timedelta(days=settings["R24_OPERATIONAL_EVIDENCE_MAX_AGE_DAYS"])
+        ):
+            return False
+        kinds.add(kind)
+        references.add(reference_id)
+        sources.add(source)
+    return kinds == expected_kinds
+
+
+def _evidence_matches_claim(kind: str, observed_value: object, profile: dict) -> bool:
+    if kind == "company_size":
+        return isinstance(observed_value, str) and observed_value == profile.get("company_size")
+    if kind == "monthly_revenue":
+        return (
+            type(observed_value) is int
+            and observed_value == profile.get("monthly_revenue_cents")
+        )
+    return type(observed_value) is int and observed_value == profile.get("employee_count")
 
 
 def _profile_reference_matches(reference: dict, profile: object) -> bool:

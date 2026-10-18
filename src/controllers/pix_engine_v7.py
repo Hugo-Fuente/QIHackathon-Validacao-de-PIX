@@ -10,7 +10,7 @@ from rules.epp import EPP_RULES
 from history_snapshot import PixHistory
 from rules import params
 from rules.pix_core import CORE_RULES, not_evaluated
-from rules.operational_profile import authorized_payroll_profile
+from rules.operational_profile import authorized_operational_profile
 from rules.registry import RULE_IMPLEMENTATION_REGISTRY
 
 RULES_VERSION = params.RULESET_VERSION
@@ -32,7 +32,7 @@ def process_transaction_v7(input_data: dict, history: PixHistory) -> dict:
         "source_metrics": history.source_metrics,
         "seen_destination_account": history.seen_destination_account,
     }
-    operational_profile = authorized_payroll_profile(
+    operational_profile = authorized_operational_profile(
         input_data, evaluation_context, params.for_rule("R24")
     ) if epp else None
 

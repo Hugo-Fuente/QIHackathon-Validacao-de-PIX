@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 PLACEHOLDER = re.compile(r"\{\{([^{}]+)\}\}")
@@ -102,10 +103,23 @@ def parse_time(value: str) -> datetime:
 
 
 def expand_step(step: dict, scenario_id: str, run_id: str, aliases: dict) -> list[dict]:
+    method = step.get("method", "POST").upper()
+    if method == "GET":
+        transaction_id = resolve_string(step["id"], scenario_id, run_id, aliases)
+        return [{
+            "name": step.get("name", "step"),
+            "method": method,
+            "id": transaction_id,
+            "expect": resolve(step.get("expect"), scenario_id, run_id, aliases),
+        }]
+
     request = resolve(step["request"], scenario_id, run_id, aliases)
     if "repeat" not in step:
         request.setdefault("transaction_date", resolve_string("{{now}}", scenario_id, run_id, aliases))
-        return [{"name": step.get("name", "step"), "request": request, "expect": step.get("expect")}]
+        return [{
+            "name": step.get("name", "step"), "method": "POST",
+            "request": request, "expect": step.get("expect"),
+        }]
 
     count = int(step["repeat"])
     start = parse_time(resolve_string(step["from"], scenario_id, run_id, aliases))
@@ -117,7 +131,10 @@ def expand_step(step: dict, scenario_id: str, run_id: str, aliases: dict) -> lis
         repeated_request = dict(request)
         repeated_request["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{run_id}:{scenario_id}:{step['name']}:{index}"))
         repeated_request["transaction_date"] = transaction_date.isoformat()
-        expanded.append({"name": f"{step.get('name', 'step')} #{index + 1}", "request": repeated_request, "expect": step.get("expect") if index == count - 1 else None})
+        expanded.append({
+            "name": f"{step.get('name', 'step')} #{index + 1}", "method": "POST",
+            "request": repeated_request, "expect": step.get("expect") if index == count - 1 else None,
+        })
     return expanded
 
 
@@ -130,6 +147,29 @@ def send_request(base_url: str, token: str, payload: dict) -> tuple[int, dict]:
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "INTERNAL-TOKEN": token},
         method="POST",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            status, content = response.status, response.read()
+    except HTTPError as error:
+        status, content = error.code, error.read()
+    except (URLError, TimeoutError) as error:
+        raise RuntimeError(f"API request failed: {error}") from error
+    try:
+        body = json.loads(content) if content else {}
+    except json.JSONDecodeError:
+        body = {"_raw": content.decode("utf-8", errors="replace")}
+    return status, body
+
+
+def send_get_request(base_url: str, token: str, transaction_id: str) -> tuple[int, dict]:
+    endpoint = base_url.rstrip("/")
+    if not endpoint.endswith("/pix/transaction"):
+        endpoint += "/pix/transaction"
+    request = Request(
+        f"{endpoint}/{quote(transaction_id, safe='')}",
+        headers={"INTERNAL-TOKEN": token},
+        method="GET",
     )
     try:
         with urlopen(request, timeout=30) as response:
@@ -168,6 +208,14 @@ def check_expectation(expected: dict, status: int, body: dict, prior: list) -> l
         errors.append(f"score {metadata.get('risk_score')}, expected {expected['score']}")
     if "actions" in expected and metadata.get("recommended_actions", []) != expected["actions"]:
         errors.append(f"actions {metadata.get('recommended_actions', [])}, expected {expected['actions']}")
+    if "transaction_id" in expected:
+        actual_id = (body.get("transaction") or {}).get("id")
+        if actual_id != expected["transaction_id"]:
+            errors.append(f"transaction id {actual_id}, expected {expected['transaction_id']}")
+    if "profile_exempt" in expected:
+        actual_exemption = bool((metadata.get("operational_profile") or {}).get("r24_exempt"))
+        if actual_exemption != expected["profile_exempt"]:
+            errors.append(f"profile R24 exemption {actual_exemption}, expected {expected['profile_exempt']}")
     if "same_key_as_step" in expected:
         reference_index = expected["same_key_as_step"]
         reference = prior[reference_index][1] if reference_index < len(prior) else None
@@ -191,7 +239,10 @@ def run_scenario(
         expanded = expand_step(step, scenario["id"], run_id, aliases)
         for item in expanded:
             try:
-                status, body = send_request(base_url, token, item["request"])
+                if item["method"] == "GET":
+                    status, body = send_get_request(base_url, token, item["id"])
+                else:
+                    status, body = send_request(base_url, token, item["request"])
             except RuntimeError as error:
                 failures.append(f"{item['name']}: {error}")
                 responses.append((None, None))
@@ -202,8 +253,8 @@ def run_scenario(
                 messages = check_expectation(expected, status, body, responses)
                 if messages:
                     diagnostic = {
-                        "id": item["request"].get("id"),
-                        "transaction_date": item["request"].get("transaction_date"),
+                        "id": item.get("id") or item["request"].get("id"),
+                        "transaction_date": item.get("request", {}).get("transaction_date"),
                         "http": status,
                         "response": body,
                     }
@@ -213,8 +264,8 @@ def run_scenario(
                     )
             elif status >= 400:
                 diagnostic = {
-                    "id": item["request"].get("id"),
-                    "transaction_date": item["request"].get("transaction_date"),
+                    "id": item.get("id") or item["request"].get("id"),
+                    "transaction_date": item.get("request", {}).get("transaction_date"),
                     "http": status,
                     "response": body,
                 }

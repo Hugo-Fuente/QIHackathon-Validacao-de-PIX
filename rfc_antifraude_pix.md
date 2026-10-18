@@ -4,7 +4,7 @@
 |---|---|
 | **Time** | Grupo 27: Hugo Gomes · Leandro Apolinário Leite · Mateus Carósio |
 | **Data** | 18/10/2026 |
-| **Versão** | 7.2 |
+| **Versão** | 7.3 |
 
 ## Contextualização
 
@@ -76,9 +76,11 @@ analisado só pelo núcleo; o `context` é uma extensão opcional da entrada.
   porque o contrato do Pix não traz o setor, o cadastro está fora do escopo e o grupo de pares de um cliente novo
   é pequeno e enviesado. Ganharia como alerta de 0 ponto (A7 no roadmap) quando a plataforma tiver o CNAE e pares
   suficientes por setor.
-- **Faturamento declarado no cadastro para afrouxar limites** — descartado porque quem abre a conta controla o
-  número: declarar muito seria pedir licença para movimentar muito. Serve só para apertar, como alerta de 0 ponto
-  (A4).
+- **Faturamento declarado no cadastro para afrouxar o limite geral** — descartado porque quem abre a conta
+  controla o número: declarar muito seria pedir licença para movimentar muito. Valor declarado isolado só pode
+  apertar, como alerta de 0 ponto (A4). Na v7.3, valores corroborados por evidências recentes entram apenas na
+  aprovação de um perfil operacional delimitado para R24; não alteram o limite comportamental geral nem
+  substituem as outras regras.
 
 ## Implementação
 
@@ -86,8 +88,8 @@ analisado só pelo núcleo; o `context` é uma extensão opcional da entrada.
 
 | Método | Caminho | O que faz | Entrada (campos que importam) | Saídas (status e quando) |
 |---|---|---|---|---|
-| `POST` | `/pix/transaction` | Valida, analisa, grava e devolve a decisão. **Idempotente:** `id` do evento (Pix ou voto) com `UNIQUE` no banco + `payload_hash` do payload normalizado. | `id`; `amount` (centavos); `transaction_date` (com fuso); `source_account.owner.document_number` e `opening_date`; `destination_account` (`participant`, `branch`, `account_number`, `owner.document_number`, `opening_date`, opcional no EPP); `source.device_id`, `channel`, `ip`, `geolocation` (opcional). **`context` (opcional, enviado pelo EPP):** `event` (`request`, `vote`, `execution`), `origin` (`immediate`, `scheduled`), `company_id`, `author_id`, `responsibility_id` e os fatos que só o EPP conhece; `request_id` e `request_hash` são obrigatórios em `vote` e `execution`; `credential_changed_at` e `destination_partner_documents` são opcionais. Para folha autorizada, o pedido inclui o snapshot `operational_profile` e os campos `batch_id`, `batch_total_cents` e `beneficiary_authorized`; a execução envia `operational_profile_ref` e o mesmo lote/total, conforme o contrato de início frio abaixo. | `201` análise criada, com `key`, `status` e `metadata` (`risk_score`, `reasons`, `rules_version`, `ruleset_hash`, `recommended_actions`, `not_evaluated` e, quando aplicável, `operational_profile`); `200` mesmo `id` e mesmo payload: devolve a análise já gravada, sem reprocessar; `400` corpo ilegível ou JSON malformado; `409` mesmo `id` com payload diferente; `422` campo ausente ou de tipo errado, `amount` não inteiro ou ≤ 0, data sem fuso, documento sem 11 ou 14 dígitos, latitude ou longitude fora da faixa, `context` com `event` inválido ou sem `author_id`, ou `vote`/`execution` sem `request_id` e `request_hash`; `500` falha interna: tudo é revertido e o reenvio é seguro |
-| `GET` | `/pix/transaction/{id}` | Devolve a análise gravada (somente leitura). `{id}` é o `id` do evento, não o `key`. | `id` na URL | `200` `key`, `status` e `metadata`; `404` nenhuma análise para esse `id` |
+| `POST` | `/pix/transaction` | Valida, analisa, grava e devolve a decisão. **Idempotente:** `id` do evento (Pix ou voto) com `UNIQUE` no banco + `payload_hash` do payload normalizado. | `id`; `amount` (centavos); `transaction_date` (com fuso); `source_account.owner.document_number` e `opening_date`; `destination_account` (`participant`, `branch`, `account_number`, `owner.document_number`, `opening_date`, opcional no EPP); `source.device_id`, `channel`, `ip`, `geolocation` (opcional). **`context` (opcional, enviado pelo EPP):** `event` (`request`, `vote`, `execution`), `origin` (`immediate`, `scheduled`), `company_id`, `author_id`, `responsibility_id` e os fatos que só o EPP conhece; `request_id` e `request_hash` são obrigatórios em `vote` e `execution`; `credential_changed_at` e `destination_partner_documents` são opcionais. Para perfil operacional autorizado, o pedido inclui `operational_profile` com três evidências verificadas de porte, faturamento mensal e número de funcionários, além de limites por pagamento/lote, `batch_id`, `batch_total_cents` e `beneficiary_authorized`; a execução envia `operational_profile_ref` e o mesmo lote/total, conforme o contrato abaixo. | `201` análise criada, com `key`, `status` e `metadata` (`risk_score`, `reasons`, `rules_version`, `ruleset_hash`, `recommended_actions`, `not_evaluated` e, quando aplicável, `operational_profile`); `200` mesmo `id` e mesmo payload: devolve a análise já gravada, sem reprocessar; `400` corpo ilegível ou JSON malformado; `409` mesmo `id` com payload diferente; `422` campo ausente ou de tipo errado, `amount` não inteiro ou ≤ 0, data sem fuso, documento sem 11 ou 14 dígitos, latitude ou longitude fora da faixa, `context` com `event` inválido ou sem `author_id`, ou `vote`/`execution` sem `request_id` e `request_hash`; `500` falha interna: tudo é revertido e o reenvio é seguro |
+| `GET` | `/pix/transaction/{id}` | Devolve o evento Pix armazenado e sua análise (somente leitura). `{id}` é o `id` do evento, não o `key`. | `id` na URL | `200` `key`, `status`, `metadata` e `transaction` com o payload gravado; `404` quando o evento não existe |
 
 ### Banco de Dados (Somente diagrama)
 
@@ -196,12 +198,14 @@ histórico, o motor usa **degraus fixos**, e só deixa o limite acompanhar o cli
 | **Frio** | Pagador com < 3 Pix não rejeitados | R4, R5 e R7 desligadas; L = R$ 5.000; degraus fixos: R10 (conta de até 30 dias), R33 (conta mais antiga, de R$ 2.000 a R$ 4.999,99) e R1 (a partir de R$ 5.000) |
 | **Em formação** | De 3 a 9 Pix, ou 10 ou mais que ainda não cumprem os dias e a antiguidade do perfil maduro | R5 e R7 (≥ 3 Pix) e R4 (≥ 5 Pix) ligam; L continua R$ 5.000 e os degraus continuam |
 | **Maduro** | ≥ 10 Pix não rejeitados, em ≥ 5 dias distintos, o mais antigo há ≥ 14 dias; Pix para o próprio documento não contam | L relativo (3× a mediana); o R33 desliga |
-| **EPP, frio ou em formação** | Empresa ativada há ≤ 30 dias, ou com < 10 saídas | R30 não avalia; o R24 aplica o degrau (R$ 5.000 vale 1; R$ 20.000 vale 2), exceto folha agendada que cabe em perfil operacional ativo e aprovado |
+| **EPP, frio ou em formação** | Empresa ativada há ≤ 30 dias, ou com < 10 saídas | R30 não avalia; o R24 aplica o degrau (R$ 5.000 vale 1; R$ 20.000 vale 2), exceto operação agendada coberta por perfil operacional ativo, aprovado e documentado |
 | **EPP, maduro** | Ativada há ≥ 30 dias e com ≥ 10 saídas | R30 avalia; o R24 desliga |
 
-**Perfil operacional de folha (v7.2).** A mediana de uma padaria recém-onboardada não representa a folha que ela precisa pagar desde o primeiro mês. O EPP mantém o perfil principal e envia, no pedido agendado, um snapshot com `profile_id`, `version`, `operation_type=payroll`, `status=active`, `company_id`, `responsibility_id`, `max_payment_cents`, `max_batch_cents`, `expires_at` e `approvals` (IDs de pelo menos dois sócios distintos do autor e os respectivos `approved_at`). O pedido também traz `batch_id`, `batch_total_cents` e `beneficiary_authorized=true`, afirmado pelo EPP somente após consultar o cadastro ativo da folha. A autorização é válida por no máximo 365 dias e precisa estar aprovada antes do evento. Cada mudança exige uma nova versão e as aprovações correspondentes.
+**Perfil operacional comprovado (v7.3).** A mediana de uma EPP recém-onboardada não representa sua folha nem os custos operacionais recorrentes. O EPP mantém um perfil versionado por empresa e responsabilidade para `operation_type=payroll` ou `operating_expenses`. O snapshot enviado no pedido agendado inclui `profile_id`, `version`, `status=active`, `company_id`, `responsibility_id`, `company_size`, `monthly_revenue_cents`, `employee_count`, `evidence`, `max_payment_cents`, `max_batch_cents`, `expires_at` e aprovações (`partner_id` + `approved_at`) de pelo menos dois sócios distintos do autor. Os limites por pagamento e lote são definidos pelo processo de aprovação do EPP; o motor não os infere nem os aumenta com base nos valores declarados.
 
-Esse perfil só neutraliza a R24 para pedido/executação `scheduled` se o Pix estiver abaixo dos tetos por pagamento e lote e o beneficiário estiver autorizado. Não substitui as demais regras nem o fluxo normal de aprovação do EPP. Na execução, o EPP envia `operational_profile_ref` com o mesmo ID/versão em estado ativo e os mesmos `batch_id`/`batch_total_cents`; o motor exige correspondência com o pedido gravado, incluindo valor, pagador, documento e conta destino, além de `request_id`/`request_hash` e ausência de execução anterior. Divergência, expiração ou revogação restabelece o degrau R24. O ID, a versão e o lote usados ficam em `metadata.operational_profile`; o snapshot completo de aprovação fica no `payload` JSONB do pedido para auditoria.
+O perfil exige três evidências verificadas, uma para cada dimensão (porte, faturamento mensal e quantidade de funcionários). Cada evidência informa `kind`, `reference_id`, `source`, `observed_value` e `verified_at`; o motor não recebe documentos brutos. As referências e origens devem ser distintas, o valor observado deve coincidir com o declarado no perfil e a verificação deve ter no máximo 90 dias. As aprovações e o perfil continuam válidos por no máximo 365 dias. Evidência ausente, repetida, vencida, futura ou divergente invalida a exceção da R24. Esses controles verificam a trilha declarada pelo serviço EPP; não provam a veracidade material do documento, que exige confrontar fontes independentes no onboarding.
+
+Esse perfil só neutraliza a R24 para pedido/execução `scheduled` se o PIX estiver abaixo dos tetos por pagamento e lote e o beneficiário estiver autorizado pelo cadastro validado do EPP. Não substitui as demais regras nem o fluxo normal de aprovação. Na execução, o EPP envia `operational_profile_ref` com o mesmo ID/versão em estado ativo e os mesmos `batch_id`/`batch_total_cents`; o motor exige correspondência com o pedido gravado, incluindo valor, pagador, documento e conta destino, além de `request_id`/`request_hash` e ausência de execução anterior. Divergência, expiração ou revogação restabelece o degrau R24. O ID, a versão e o lote usados ficam em `metadata.operational_profile`; o snapshot completo de evidências e aprovações fica no `payload` JSONB do pedido para auditoria.
 
 O motor não autentica votos nem administra perfis de folha. Esses fatos são atestados pelo serviço EPP, chamador autenticado pelo `INTERNAL-TOKEN`; esse segredo deve ser exclusivo do serviço EPP. O cadastro operacional principal e as aprovações ficam no EPP, e cada evento persistido no motor conserva a cópia recebida para reproduzir a decisão.
 
@@ -321,7 +325,7 @@ um `RULE_HIT` com os pontos antes do teto)
 - **Autorreferência:** se `source_document` = `destination_document`, R5, R6 e R9 não pontuam.
 - **Pagamento programado:** a execução pelo agendador (`event` = `execution` e `origin` = `scheduled`)
   não pontua R2, R3, R5 nem R17 a R19. O pedido que cria o agendamento (`request`) passa pelas outras
-  regras. A R24 também não pontua quando a folha está coberta por perfil operacional ativo e aprovado,
+  regras. A R24 também não pontua quando a operação agendada está coberta por perfil operacional ativo e aprovado,
   dentro dos limites por pagamento e lote, e a execução corresponde exatamente ao pedido. Sem esse perfil,
   se ele vencer/for revogado ou houver divergência, a R24 normal de início frio continua valendo. A C1 e as
   demais regras permanecem ativas.

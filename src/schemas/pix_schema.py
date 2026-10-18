@@ -57,6 +57,23 @@ class OperationalApprovalSchema(BaseModel):
         return value.astimezone(timezone.utc)
 
 
+class OperationalEvidenceSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["company_size", "monthly_revenue", "employee_count"]
+    reference_id: StrictStr = Field(..., min_length=1)
+    source: StrictStr = Field(..., min_length=1)
+    observed_value: StrictInt | StrictStr
+    verified_at: datetime
+
+    @field_validator("verified_at")
+    @classmethod
+    def evidence_verification_requires_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("operational evidence timestamps must include a timezone")
+        return value.astimezone(timezone.utc)
+
+
 class OperationalProfileSchema(BaseModel):
     """Immutable EPP snapshot; each approved change increments ``version``."""
 
@@ -64,14 +81,28 @@ class OperationalProfileSchema(BaseModel):
 
     profile_id: StrictStr = Field(..., min_length=1)
     version: StrictInt = Field(..., ge=1)
-    operation_type: Literal["payroll"]
+    operation_type: Literal["payroll", "operating_expenses"]
     status: Literal["active", "inactive", "revoked"]
     company_id: StrictStr = Field(..., min_length=1)
     responsibility_id: StrictStr = Field(..., min_length=1)
+    company_size: Literal["micro", "small", "medium", "large"]
+    monthly_revenue_cents: StrictInt = Field(..., gt=0)
+    employee_count: StrictInt = Field(..., gt=0)
+    evidence: list[OperationalEvidenceSchema] = Field(..., min_length=3, max_length=3)
     max_payment_cents: StrictInt = Field(..., gt=0)
     max_batch_cents: StrictInt = Field(..., gt=0)
     approvals: list[OperationalApprovalSchema] = Field(..., min_length=1)
     expires_at: datetime
+
+    @model_validator(mode="after")
+    def require_one_evidence_per_metric(self):
+        evidence_kinds = [item.kind for item in self.evidence]
+        reference_ids = [item.reference_id for item in self.evidence]
+        if set(evidence_kinds) != {"company_size", "monthly_revenue", "employee_count"}:
+            raise ValueError("operational profile requires evidence for size, revenue and employee count")
+        if len(set(reference_ids)) != len(reference_ids):
+            raise ValueError("operational evidence references must be distinct")
+        return self
 
     @field_validator("expires_at")
     @classmethod
@@ -151,3 +182,7 @@ class PixTransactionOutput(BaseModel):
     key: str
     status: str
     metadata: Dict[str, Any] = {}
+
+
+class PixTransactionDetailsOutput(PixTransactionOutput):
+    transaction: Dict[str, Any]
