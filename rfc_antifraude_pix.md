@@ -32,7 +32,7 @@ comunicação de operações suspeitas, que é do compliance.
 A API valida e normaliza o evento, trava as chaves envolvidas (o próprio `id`, o pagador e a conta
 destino) dentro de uma transação PostgreSQL, lê o histórico local já gravado, monta uma vez o perfil do pagador e de cada contraparte, junta os fatos que só o
 EPP conhece (saldo livre, limites, ativação da conta, mudanças de controle), confere a integridade
-entre pedido, voto e execução (C1), avalia 33 regras determinísticas (R1 a R12, R28, R29 e R33 de Pix; R13 a
+entre pedido, voto e execução (C1), avalia 35 regras determinísticas (R1 a R12, R28, R29 e R33 a R35 de Pix; R13 a
 R27 e R30 a R32 do contexto EPP) e soma pontos. Cada regra é uma função
 pura (evento + contexto de histórico → pontos e detalhe), o que permite testá-la sem banco; as
 camadas seguem o Base Service (rota, serviço, repositório). A soma vira o status por faixas, com tetos
@@ -124,7 +124,7 @@ erDiagram
     RULE_HIT {
         bigint id PK
         uuid analysis_key FK
-        string rule_code "R1 a R33 e C1"
+        string rule_code "R1 a R35 e C1"
         smallint points "pontos antes do teto"
         string detail "valores observados e parâmetro usado"
     }
@@ -145,7 +145,7 @@ erDiagram
    cada contraparte uma única vez (v6, sem tabela nova) e juntá-lo ao `context` do EPP.
    As janelas são relativas à `transaction_date` do próprio evento, usam só registros com data menor ou
    igual a ela e excluem o próprio `id`.
-5. Rodar a checagem C1 (só em `vote` e `execution`), executar as regras aplicáveis de R1 a R33 em ordem
+5. Rodar a checagem C1 (só em `vote` e `execution`), executar as regras aplicáveis de R1 a R35 em ordem
    fixa, aplicar modificadores e tetos, somar e mapear a faixa em `status`; se a C1 for acionada, o
    `status` é `rejected`.
 6. Gravar `PIX_TRANSACTION`, `FRAUD_ANALYSIS` e `RULE_HIT` na mesma transação, fazer commit e devolver
@@ -155,11 +155,13 @@ erDiagram
 agregadas que já existem, e as regras leem dele em vez de recalcular o próprio histórico: valor típico
 (mediana e quantidade dos últimos 20 Pix não rejeitados; no EPP, por `responsibility_id` quando houver),
 aparelhos (dos últimos 20 Pix; no EPP, do autor), horário habitual do autor (R19) e, por documento destino
-pago nos últimos 180 dias, a quantidade de Pix, a data do primeiro, a soma e o maior valor. Uma
+pago nos últimos 180 dias, a quantidade de Pix, os dias distintos com Pix, a data do primeiro, a soma, o maior valor e o maior total diário. Uma
 **contraparte recorrente** cumpre quatro condições: ≥ 3 Pix anteriores não rejeitados do pagador (no EPP, da
 conta da empresa); o primeiro há ≥ 30 dias; soma ≥ R$ 1.000; e o valor atual **dentro da faixa**, isto é,
-≤ 2× o maior Pix anterior para ela (no R29, a soma da janela, contando o atual, é que precisa estar dentro
-da faixa, e "anteriores" são os Pix antes do início da janela). Na v5 bastava a contagem, e três Pix de
+≤ 2× o maior Pix anterior para ela (no R29, "anteriores" são os Pix antes do início da janela, em ≥ 3 dias
+distintos, e a faixa é a soma da janela, contando o atual, contra 2× o maior total diário já pago ao
+documento nos 180 dias anteriores, não o maior Pix: o aluguel pago em quatro parcelas seguidas pontuaria
+todo mês). Na v5 bastava a contagem, e três Pix de
 R$ 5 compravam a isenção do R29. Os números (30 dias, R$ 1.000, 2×, 180 dias) são pontos de partida.
 
 **Regras de Pix avaliadas no passo 5** (parâmetros iniciais, calibrados com os cenários de teste e
@@ -175,16 +177,18 @@ repetidos no README)
 | **R6 Destino recém-aberto** | Conta destino com ≤ 30 dias na `transaction_date`, medidos em tempo decorrido, e `amount` ≥ R$ 1.000 (se o R8 dispara, vale a soma da janela dele); sem `opening_date` do destino, não pontua | 2 | Contas recentes concentram risco de conta de passagem. 30 dias evita a fronteira apertada de 7 dias. |
 | **R7 Dispositivo novo** | `device_id` fora dos dispositivos dos últimos 20 Pix não rejeitados do pagador, com histórico ≥ 3 e `amount` ≥ R$ 500 | 2 | Troca de aparelho é legítima, por isso só pontua com valor relevante e perfil existente. |
 | **R8 Fracionamento** | ≥ 3 Pix do pagador para a mesma conta destino em 5 min, cada um < R$ 1.000, com soma ≥ R$ 2.000 | 2 | Detecta quem fica abaixo do piso do R6 dividindo o valor; por isso, quando dispara, o R6 olha a soma da janela e não cada Pix. |
-| **R9 Destino concentrador** | Conta destino recebeu de ≥ 5 pagadores distintos em 60 min, com soma ≥ R$ 10.000, contando o atual; não vale para destinatário CNPJ com conta > 30 dias | 3 | Padrão de conta de passagem. 5 pagadores distintos em uma hora é incomum fora do comércio, e o piso de R$ 10.000 evita pontuar vaquinhas pequenas. A exceção protege comerciantes legítimos. |
+| **R9 Destino concentrador** (v6) | Conta destino recebeu de ≥ 5 pagadores distintos em 60 min, com soma ≥ R$ 10.000, contando o atual; não vale para destinatário CNPJ com conta > 30 dias **e perfil de comerciante**: a conta destino recebeu, nos 90 dias anteriores à janela, de ≥ 10 pagadores distintos em ≥ 5 dias distintos | 3 | Padrão de conta de passagem. 5 pagadores distintos em uma hora é incomum fora do comércio, e o piso de R$ 10.000 evita pontuar vaquinhas pequenas. Antes a exceção valia para todo CNPJ com conta de mais de 30 dias, e um CNPJ antigo usado como conta de passagem (MEI ou empresa parada) recebia de 8 pagadores sem pontuar. Agora a exceção exige histórico de recebimentos de comerciante. O perfil usa só pagadores que passaram pelo motor, então é indício, não prova: um comerciante novo na plataforma pontua até formar histórico (2FA no pagador, não rejeição). |
 | **R10 Pagador recente** | Conta pagadora com ≤ 30 dias e `amount` ≥ R$ 2.000; vale 2 se o pagador tem < 3 Pix no histórico | 1 (2 sem perfil) | Sinal complementar de idade da conta. 30 dias acompanha o R6; o piso é maior (R$ 2.000) porque conta nova, sozinha, não é suspeita. Sem 3 Pix de histórico, R4, R5 e R7 não avaliam e o R10 é a única proteção: por isso vale 2 e leva a 2FA (na v4, o primeiro Pix de R$ 4.900 de uma conta de 10 dias saía `approved`). |
 | **R11 Deslocamento impossível** | Com geolocalização nos dois Pix, o Pix anterior do pagador foi há ≤ 60 min, a distância é ≥ 50 km e a velocidade implícita é > 900 km/h | 3 | Sugere sessão usada de outro lugar. 900 km/h é a ordem de um voo comercial; 50 km filtra ruído de GPS. Sem geolocalização, não pontua. |
 | **R12 Dispositivo compartilhado** | Mesmo `device_id` usado por ≥ 3 documentos pagadores distintos em 24 h | 2 | Um aparelho servindo várias titularidades sugere fazenda de contas. 3 documentos deixa de fora o aparelho dividido por duas pessoas (casal, família). |
 | **R28 Valor colado no piso** | ≥ 3 Pix do pagador em 24 h, contando o atual e qualquer status, cada um entre R$ 4.500 e R$ 4.999,99 (90% a 99,99% do piso do R1); só avalia quando o R1 dispararia para R$ 5.000 neste perfil (sem perfil de valor, ou mediana < R$ 1.666,67) | 2 | O R1 é um degrau: R$ 4.999 vale 0 e R$ 5.000 vale 2, e quem conhece o piso fica logo abaixo. Um Pix assim é normal; três no mesmo dia são teste. Com o R1 relativo, quem tem mediana alta não paga nada por cruzar R$ 5.000 e não há degrau para colar. Entra na família de valor. |
-| **R29 Fracionamento por documento** | ≥ 4 Pix do pagador para o mesmo documento destino (qualquer conta) em 60 min, contando o atual, soma ≥ R$ 5.000, sem teto por Pix; não vale para destinatário recorrente (v6; anteriores = antes do início da janela, soma da janela dentro da faixa) | 2 | O R8 só vê a mesma conta, 5 min e Pix < R$ 1.000: seis Pix de R$ 1.499 passavam por R2, R3 e R8. 4 Pix em 1 h separam fracionamento de duas ou três compras seguidas; R$ 5.000 é o piso do R1, então dividir para fugir dele é o caso. Compartilha teto com o R8. A isenção era só por contagem (três Pix de R$ 5 e, depois, quatro de R$ 1.499 passavam); a v6 exige tempo, soma e valor compatível. |
+| **R29 Fracionamento por documento** | ≥ 4 Pix do pagador para o mesmo documento destino (qualquer conta) em 60 min, contando o atual, soma ≥ R$ 5.000, sem teto por Pix; não vale para destinatário recorrente (v6; anteriores = antes do início da janela, em ≥ 3 dias distintos, primeiro há ≥ 30 dias e soma ≥ R$ 1.000; soma da janela, contando o atual, ≤ 2× o maior total diário pago ao documento nos 180 dias anteriores; se a maturidade ou o valor falha, pontua) | 2 | O R8 só vê a mesma conta, 5 min e Pix < R$ 1.000: seis Pix de R$ 1.499 passavam por R2, R3 e R8. 4 Pix em 1 h separam fracionamento de duas ou três compras seguidas; R$ 5.000 é o piso do R1, então dividir para fugir dele é o caso. Compartilha teto com o R8. A isenção era só por contagem (três Pix de R$ 5 e, depois, quatro de R$ 1.499 passavam); a v6 exige tempo, soma e valor compatível, medido pelo maior total diário (não pelo maior Pix: o aluguel pago em quatro parcelas seguidas pontuaria todo mês) e por ≥ 3 dias distintos (três Pix no mesmo dia não são histórico). |
 | **R33 Salto de valor na contraparte** (v6) | ≥ 1 Pix anterior não rejeitado do pagador para o mesmo documento destino (qualquer conta) nos últimos 180 dias; `amount` ≥ 5× o maior deles; `amount` ≥ R$ 1.000 | 2 | O R5 só pontua a contraparte nova: depois de um Pix pequeno de "entrada" ela é conhecida, o R5 fica em 0 e um Pix grande passava limpo se a mediana do pagador fosse alta (o R4 compara com o pagador, não com a contraparte). 5× é o múltiplo do R4; sem Pix anterior o caso é do R5; sem exceção de recorrente, porque a comparação já é com a história dela. Entra na família de valor. |
+| **R34 Fan-out de destinatários novos** (v6) | ≥ 8 documentos destino distintos e novos em 24 h, contando o atual e qualquer status, com soma dos Pix a eles ≥ R$ 5.000; "novo" = documento sem Pix não rejeitado do pagador nos 180 dias anteriores à janela | 2 | Quem esvazia uma conta (acesso remoto no aparelho de sempre, mula) divide o valor em Pix pequenos para destinos diferentes, e nada pegava: o R3 só olha 10 min e exige R$ 10.000, o R8 e o R29 exigem a mesma conta ou o mesmo documento, e R4 e R5 têm pisos de R$ 500 e R$ 1.000. Na simulação, 40 Pix de R$ 900 a 40 destinos em 2 h (R$ 36.000) passavam com score 0; agora o 8º Pix leva 2FA. Oito destinos novos em um dia é incomum fora de comércio e folha, que pagam destinos recorrentes. O piso de R$ 5.000 é o do R1. Entra na família de fracionamento. |
+| **R35 Passagem entrada → saída no varejo** (v6) | Só sem `context`. A conta do pagador recebeu, nas 24 h anteriores, Pix não rejeitados de ≥ 3 pagadores distintos da plataforma, todos sem Pix anterior a ela nos 180 dias antes da janela, com soma `E` ≥ R$ 5.000; as saídas do pagador em 24 h, contando o atual, somam ≥ 80% de `E`, e o Pix atual vai para conta sem Pix anterior do pagador. A conta do pagador é a `destination_account_key` com o ISPB do próprio banco | 3 | O R9 pega a conta que recebe, mas o titular cúmplice passa o 2FA da saída: na simulação, R$ 9.900 saindo de uma conta que acabara de receber de 4 desconhecidos somavam só 4 (2FA) pelas regras de valor e destino novo; com o R35, 7 (`rejected`). É a mesma ideia do R25 do EPP, com o dado que o motor já tem (os Pix que entraram nessa conta vindos de outros clientes); não vê entradas de outros bancos. Exigir pagadores sem relação anterior poupa a vaquinha entre amigos: na simulação, o organizador que repassa R$ 6.000 segue em 2FA. Calibrar primeiro, como o R25: sozinha vale 3 e leva a 2FA, mas somada às regras de valor e ao destino novo passa de 5. |
 
 
-**Ajustes de R1 a R12, R28, R29 e R33 quando há `context`** (sem `context`, as regras valem como estão)
+**Ajustes de R1 a R12, R28, R29 e R33 a R35 quando há `context`** (sem `context`, as regras valem como estão)
 
 | Regra | No EPP | Por quê |
 |---|---|---|
@@ -203,6 +207,8 @@ repetidos no README)
 | **R28 Valor colado no piso** | **Não avalia** (vale o R13) | O R1 não existe no EPP, então não há piso para colar; o teto que importa é o do sócio, que o R13 mede. |
 | **R29 Fracionamento por documento** | Igual | Fracionar entre contas do mesmo titular é risco para qualquer pagador. |
 | **R33 Salto de valor na contraparte** | Igual; execução `scheduled` não pontua | Mesmo motivo do R5: a execução cumpre um pedido já avaliado, e o pedido que criou o agendamento passa pelo R33 por completo. |
+| **R34 Fan-out de destinatários novos** | Igual; execução `scheduled` não pontua | A folha e o pagamento em lote a vários fornecedores já foram avaliados por completo no pedido que criou o agendamento. |
+| **R35 Passagem entrada → saída no varejo** | **Não avalia** (vale o R25) | O R25 mede a passagem da empresa com as entradas externas que o EPP envia; o R35 só enxerga os Pix que passaram pelo motor. |
 
 **Regras do contexto EPP avaliadas no passo 5** (R13 a R27 e R30 a R32; só quando há `context`; o "autor" é o sócio que
 criou o pedido; "recorrente" é a contraparte recorrente definida acima (v6): pagamentos da empresa, ≥ 3, relação há ≥ 30 dias, soma ≥ R$ 1.000 e valor dentro da faixa)
@@ -239,7 +245,7 @@ em ordem fixa, sem short-circuit; a ordem só estabiliza a lista de motivos, e c
 um `RULE_HIT` com os pontos antes do teto)
 
 - **Tetos por família**, para o mesmo ato não contar várias vezes: **3 pontos** para valor
-  (R1 + R3 + R4 + R28 + R33), **2** para fracionamento (R8 + R29), **3** para controles internos
+  (R1 + R3 + R4 + R28 + R33), **2** para fracionamento (R8 + R29 + R34), **3** para controles internos
   (R13 + R14 + R16), **4** para sessão do sócio (R17 + R18 + R19 + R32) e **2** para destino ligado a
   sócio (R22 + R31), de modo que sinais de sessão sozinhos nunca reprovam.
 - **Faixas:** **0–1** `approved`; **2–4** `two_factor_required`; **≥ 5** `rejected`. Como valor alto
@@ -247,7 +253,7 @@ um `RULE_HIT` com os pontos antes do teto)
   probabilidade calibrada: calibrar exigiria dados rotulados, e os cortes em 2 e 5 são decisões de política.
 - **Autorreferência:** se `source_document` = `destination_document`, R5, R6 e R9 não pontuam.
 - **Pagamento programado:** a execução pelo agendador (`event` = `execution` e `origin` = `scheduled`)
-  não pontua R2, R3, R5, R33 nem R17 a R19: o lote da folha não deve ser rejeitado por rajada e contraparte
+  não pontua R2, R3, R5, R33, R34 nem R17 a R19: o lote da folha não deve ser rejeitado por rajada e contraparte
   nova, e o aparelho de quem agendou não existe na execução. O pedido que cria o agendamento
   (`request`) é avaliado por completo; sem isso, quem agenda um pagamento futuro a contraparte nova, de
   aparelho novo, passava limpo. Na execução continuam valendo a C1 e as regras de estado da conta
@@ -258,9 +264,9 @@ um `RULE_HIT` com os pontos antes do teto)
   R32 for acionada, `metadata.recommended_actions` traz `notify_all_partners`: o EPP avisa todos os
   sócios, inclusive os que não votaram, antes de liberar o dinheiro. O detalhe de `reasons` não deve ser
   exibido ao cliente final, porque parâmetros revelados ensinam a ficar abaixo deles.
-- **Histórico:** o de confiança (R1, R4, R5, R7, R17, R33 e a contraparte recorrente) exclui apenas Pix `rejected`: o motor não recebe o
+- **Histórico:** o de confiança (R1, R4, R5, R7, R17, R33 a R35 e a contraparte recorrente) exclui apenas Pix `rejected`: o motor não recebe o
   resultado do 2FA, e contar só os `approved` faria o cliente do aluguel cair em 2FA todo mês. O de
-  rajada e concentração (R2, R3, R8, R9, R11, R12, R28, R29) conta qualquer status.
+  rajada e concentração (R2, R3, R8, R9, R11, R12, R28, R29, R34) conta qualquer status.
 - **Exemplos:** o cliente com mediana de R$ 200 que paga R$ 6.000 pela primeira vez a um locador, no
   aparelho de sempre, soma 3 (valor, já com o teto) + 1 (R5) = 4 e recebe 2FA. Já a sessão sequestrada
   de um sócio, com aparelho nunca visto (2), às 2h10 (1) e saída de 87% do saldo livre (2), soma 5 e é
@@ -349,7 +355,7 @@ responde ou não perante a lei é questão de jurídico e compliance.
 
 R3, R6, R7, R10 e R29 mantêm piso absoluto na v6: R6, R7 e R10 protegem onde o perfil não ajuda ou não existe,
 e R3 e R29 medem soma. Risco aceito: quem constrói a relação (3 Pix, 30 dias, R$ 1.000) pode mandar até 2× o
-maior Pix sem pontuar em R1, R4 e R29; uma escada de dobros passa, porque o R33 só pega 5×.
+maior Pix (no R29, o maior total diário) sem pontuar em R1, R4 e R29; uma escada de dobros passa, porque o R33 só pega 5×.
 
 **Roadmap (nada disso está ativo na v6).** Padrões de lavagem de dinheiro entram como alertas de 0 ponto
 para o back-office, como o R27: giro de 7 dias (A1), ciclo A→B→A (A2), fan-out de contrapartes novas
