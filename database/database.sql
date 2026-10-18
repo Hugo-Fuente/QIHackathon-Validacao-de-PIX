@@ -40,6 +40,8 @@ INSERT INTO fraud_rules (code, name, default_points) VALUES
 ('R30', 'Regra R30 (a definir)', 1),
 ('R31', 'Regra R31 (a definir)', 1),
 ('R32', 'Regra R32 (a definir)', 1),
+('R33', 'Degrau de início frio', 1),
+('C1', 'Integridade do pedido, voto e execução', 0),
 ('R_VELOCITY', 'Velocity por remetente', 3),
 ('R_CRITICAL', 'Bloqueio por rajada crítica', 5);
 

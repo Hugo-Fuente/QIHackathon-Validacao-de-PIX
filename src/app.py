@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Response
 from fastapi.security import APIKeyHeader
 from resources.pix_resource import PixResource
 
@@ -24,6 +24,14 @@ def create_app() -> FastAPI:
         description="Hackathon Risk Solutions QI Tech 2026",
         dependencies=[Depends(token_auth)]
     )
+
+    @application.get("/", include_in_schema=False)
+    async def home():
+        return {"status": "ok"}
+
+    @application.get("/health_check", status_code=204, include_in_schema=False)
+    async def health_check():
+        return Response(status_code=204)
 
     # O FastAPI executa os middlewares do último registrado para o primeiro.
     register_session_manager_middleware(application)
