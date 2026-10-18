@@ -984,23 +984,147 @@ class PixController:
                         except Exception as e:
                             logger.warning("Falha na avaliação da R30: %s", e)
 
+        # R31: Destino ligado a sócio (v5) -> 2 pontos
+            if context_data.get("event") == "request" and amount >= 200000:
+                source_partners = context_data.get("partner_documents", [])
+                dest_partners = context_data.get("destination_partner_documents", [])
+                
+                is_linked = False
+                # Interseção entre os sócios da origem e do destino
+                if source_partners and dest_partners:
+                    if set(source_partners).intersection(set(dest_partners)):
+                        is_linked = True
+                        
+                if is_linked:
+                    dest_doc_r31 = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
+                    is_exempt_r31 = False
+                    
+                    # Verifica isenção: Contraparte Recorrente (v6) com valor ±20% do pró-labore
+                    past_txs_r31 = []
+                    for tx in user_history:
+                        tx_payload = getattr(tx, 'payload', {})
+                        if isinstance(tx_payload, str):
+                            try: tx_payload = json.loads(tx_payload)
+                            except: tx_payload = {}
+                        if isinstance(tx_payload, dict):
+                            past_dest = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                            if past_dest == dest_doc_r31:
+                                past_txs_r31.append(tx)
+                                
+                    if len(past_txs_r31) >= 3:
+                        try:
+                            first_tx_time = min(_as_utc_datetime(tx.transaction_date) for tx in past_txs_r31)
+                            curr_time = _as_utc_datetime(input_data["transaction_date"])
+                            
+                            # Relação com 30 dias ou mais
+                            if (curr_time - first_tx_time).days >= 30:
+                                sum_past = sum(getattr(tx, "amount", 0) for tx in past_txs_r31)
+                                if sum_past >= 100000:
+                                    max_past = max(getattr(tx, "amount", 0) for tx in past_txs_r31)
+                                    # Margem estrita de 80% a 120% do maior Pix já pago
+                                    if (max_past * 0.8) <= amount <= (max_past * 1.2):
+                                        is_exempt_r31 = True
+                        except Exception as e:
+                            logger.warning("Falha na isenção recorrente da R31: %s", e)
+                            
+                    if not is_exempt_r31:
+                        rule_hits.append({
+                            "code": "R31",
+                            "points": 2,
+                            "detail": "Destino ligado a sócio: A conta destino possui vínculos societários cruzados com a empresa pagadora."
+                        })
+
+        # R32: Credencial trocada seguida de saída (v5) -> 2 pontos
+            if context_data.get("event") == "request" and context_data.get("origin") == "immediate" and amount >= 200000:
+                credential_changed_str = context_data.get("credential_changed_at")
+                
+                if credential_changed_str:
+                    try:
+                        changed_time = _as_utc_datetime(credential_changed_str)
+                        curr_time = _as_utc_datetime(input_data["transaction_date"])
+                        
+                        # Verifica se a troca foi nas últimas 24h
+                        diff_hours = (curr_time - changed_time).total_seconds() / 3600.0
+                        
+                        if 0 <= diff_hours <= 24:
+                            # Ignora se a credencial foi criada há < 7 dias. 
+                            # Como a API não define 'author_created_at', usamos a abertura da conta da empresa como proxy conservador
+                            account_opening_str = input_data.get("source_account", {}).get("opening_date")
+                            is_recent_credential = False
+                            
+                            if account_opening_str:
+                                opening_time = _as_utc_datetime(account_opening_str)
+                                if (curr_time - opening_time).days < 7:
+                                    is_recent_credential = True
+                            
+                            if not is_recent_credential:
+                                rule_hits.append({
+                                    "code": "R32",
+                                    "points": 2,
+                                    "detail": f"Risco de Invasão (ATO): Pedido de R$ {amount/100:.2f} efetuado apenas {diff_hours:.1f}h após alteração crítica de credenciais."
+                                })
+                    except Exception as e:
+                        logger.warning("Falha na avaliação da R32: %s", e)
+
+        # R33: Salto de valor na contraparte (v6) -> 2 pontos
+        if amount >= 100000:
+            # Verifica isenção EPP (execução de agendamento não pontua)
+            is_scheduled_execution = context_data and context_data.get("event") == "execution" and context_data.get("origin") == "scheduled"
+            
+            if not is_scheduled_execution:
+                dest_doc_r33 = input_data.get("destination_account", {}).get("owner", {}).get("document_number")
+                if dest_doc_r33:
+                    past_txs_dest_r33 = []
+                    curr_time = _as_utc_datetime(input_data["transaction_date"])
+                    
+                    # Procura no histórico aprovado (user_history) transferências para este destino nos últimos 180 dias
+                    for tx in user_history:
+                        try:
+                            tx_time = _as_utc_datetime(tx.transaction_date)
+                            if (curr_time - tx_time).days <= 180:
+                                tx_payload = getattr(tx, 'payload', {})
+                                if isinstance(tx_payload, str):
+                                    try: tx_payload = json.loads(tx_payload)
+                                    except: tx_payload = {}
+                                    
+                                if isinstance(tx_payload, dict):
+                                    past_dest = tx_payload.get("destination_account", {}).get("owner", {}).get("document_number")
+                                    if past_dest == dest_doc_r33:
+                                        past_txs_dest_r33.append(tx)
+                        except Exception as e:
+                            logger.warning("Falha na extração de datas da R33: %s", e)
+                            
+                    if len(past_txs_dest_r33) >= 1:
+                        # Qual foi o maior valor que já enviámos a este gajo?
+                        max_past_amount = max(getattr(tx, "amount", 0) for tx in past_txs_dest_r33)
+                        
+                        # O valor atual é 5x superior a esse máximo?
+                        if max_past_amount > 0 and amount >= (5 * max_past_amount):
+                            rule_hits.append({
+                                "code": "R33",
+                                "points": 2,
+                                "detail": f"Salto de valor: R$ {amount/100:.2f} é >= 5x o maior valor já enviado a esta contraparte (R$ {max_past_amount/100:.2f})."
+                            })
+
         # Agrupamento e tetos por família
-        value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28"]]
+        value_rules = [h for h in rule_hits if h["code"] in ["R1", "R3", "R4", "R28", "R33"]]        
         frac_rules = [h for h in rule_hits if h["code"] in ["R8", "R29"]]
         internal_controls_rules = [h for h in rule_hits if h["code"] in ["R13", "R14", "R16"]]        
-        session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]]
+        session_rules = [h for h in rule_hits if h["code"] in ["R17", "R18", "R19", "R32"]]        
         account_behavior_rules = [h for h in rule_hits if h["code"] in ["R20", "R21"]]
-        maturity_rules = [h for h in rule_hits if h["code"] in ["R22", "R23", "R24"]]
+        maturity_rules = [h for h in rule_hits if h["code"] in ["R23", "R24"]]
+        linked_destination_rules = [h for h in rule_hits if h["code"] in ["R22", "R31"]]
+        company_outflow_rules = [h for h in rule_hits if h["code"] == "R30"]
         anomaly_rules = [h for h in rule_hits if h["code"] in ["R25", "R26", "R27"]]
 
         grouped_rule_codes = {
-            "R1", "R3", "R4", "R28",
+            "R1", "R3", "R4", "R28", "R33",
             "R8", "R29",
-            "R13", "R14", "R16",
+            "R13", "R14", "R16", "R30",
             "R17", "R18", "R19", "R32",
             "R20", "R21",
             "R22", "R23", "R24",
-            "R25", "R26", "R27",
+            "R25", "R26", "R27", "R31"
         }
         other_rules = [h for h in rule_hits if h["code"] not in grouped_rule_codes]
 
@@ -1010,6 +1134,8 @@ class PixController:
         session_points = min(4, sum(h["points"] for h in session_rules))
         account_behavior_points = min(3, sum(h["points"] for h in account_behavior_rules))
         maturity_points = min(3, sum(h["points"] for h in maturity_rules))
+        linked_destination_points = min(2, sum(h["points"] for h in linked_destination_rules))
+        company_outflow_points = sum(h["points"] for h in company_outflow_rules)
         anomaly_points = min(4, sum(h["points"] for h in anomaly_rules))
         other_points = sum(h["points"] for h in other_rules)
 
@@ -1020,6 +1146,8 @@ class PixController:
             + session_points
             + account_behavior_points
             + maturity_points
+            + linked_destination_points
+            + company_outflow_points
             + anomaly_points
             + other_points
         )
