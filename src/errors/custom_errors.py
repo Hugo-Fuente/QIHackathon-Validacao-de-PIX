@@ -168,6 +168,25 @@ class VotoJaRegistrado(Conflito):
     translation = "Você já votou neste pedido com outra decisão."
 
 
+class ConflictError(Conflito):
+    code = "PIX_EVENT_ID_CONFLICT"
+    title = "Pix event id was already used with a different payload"
+    translation = "O id deste evento Pix já foi usado com outro conteúdo."
+
+
+class NotFoundError(NaoEncontrado):
+    code = "PIX_ANALYSIS_NOT_FOUND"
+    title = "Pix analysis not found"
+    translation = "A análise não foi encontrada para este ID de Pix."
+
+
+class ServiceUnavailableError(ErroDeDominio):
+    http_status_code = 503
+    code = "PIX_LOCK_TIMEOUT"
+    title = "Pix event lock timed out"
+    translation = "A análise demorou para obter a trava; reenvie o mesmo evento com segurança."
+
+
 # ───────────────────────────── 422 ─────────────────────────────
 # cadastro da empresa
 

@@ -1,0 +1,124 @@
+{
+  "run": "1eaacbd0",
+  "status": "interrupted_during_idempotency",
+  "url": "http://127.0.0.1:3002/pix/transaction",
+  "sla_p95_ms": 2000,
+  "configuration": {
+    "cpu_logical_available": 8,
+    "api_runtime": "Docker, Uvicorn --workers 2, no --reload, port 3002",
+    "load_generator": "host process on the same machine; shares CPU with Docker",
+    "sqlalchemy_pool_per_worker": {
+      "pool_size": 10,
+      "max_overflow": 30,
+      "max_capacity": 40,
+      "pool_recycle_seconds": 600,
+      "pool_pre_ping": true
+    },
+    "api_pool_capacity_2_workers": 80,
+    "postgres_max_connections": 100,
+    "sla_p95_ms": 2000,
+    "max_error_pct": 1.0,
+    "auth_adaptation": "temporary copy of load_tests.py adds INTERNAL-TOKEN header; original unchanged"
+  },
+  "ramp": {
+    "stages": [
+      {
+        "concurrency": 1,
+        "rps": 14.3,
+        "p50_ms": 70.3,
+        "p95_ms": 94.2,
+        "p99_ms": 150.2,
+        "error_rate_pct": 0,
+        "within_sla": true
+      },
+      {
+        "concurrency": 5,
+        "rps": 21.4,
+        "p50_ms": 243.3,
+        "p95_ms": 317.0,
+        "p99_ms": 354.3,
+        "error_rate_pct": 0,
+        "within_sla": true
+      },
+      {
+        "concurrency": 10,
+        "rps": 18.7,
+        "p50_ms": 400.8,
+        "p95_ms": 938.3,
+        "p99_ms": 987.3,
+        "error_rate_pct": 0,
+        "within_sla": true
+      },
+      {
+        "concurrency": 25,
+        "rps": 16.7,
+        "p50_ms": 1534.2,
+        "p95_ms": 1846.0,
+        "p99_ms": 1875.0,
+        "error_rate_pct": 0,
+        "within_sla": true
+      },
+      {
+        "concurrency": 50,
+        "rps": 15.4,
+        "p50_ms": 3240.8,
+        "p95_ms": 3577.3,
+        "p99_ms": 3781.1,
+        "error_rate_pct": 0,
+        "within_sla": false
+      },
+      {
+        "concurrency": 100,
+        "rps": 13.2,
+        "p50_ms": 7498.7,
+        "p95_ms": 11025.1,
+        "p99_ms": 12036.7,
+        "error_rate_pct": 0,
+        "within_sla": false
+      }
+    ],
+    "highest_throughput_within_sla": {
+      "concurrency": 5,
+      "rps": 21.4
+    }
+  },
+  "idempotency": {
+    "status": "did_not_complete",
+    "observation": "first 20-request burst remained blocked on PostgreSQL advisory lock; an idle-in-transaction session was observed for over 438 seconds"
+  },
+  "follow_up_hot": {
+    "report": "../load_test_20261018_hot_01/report.md",
+    "expected_r2_hits_per_payer": 6,
+    "concurrent_hits_per_payer": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "sequential_hits_per_payer": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "non_201": 0,
+    "contention_p95_ms": 5137.5
+  },
+  "notes": [
+    "The full run was stopped; conflict, hot, validation, get, mixed, and soak phases were not part of that run.",
+    "The hot phase was run separately and passed its R2 semantics and concurrency checks.",
+    "No request CSV was produced for the interrupted run because the script writes files only after all selected phases finish."
+  ]
+}

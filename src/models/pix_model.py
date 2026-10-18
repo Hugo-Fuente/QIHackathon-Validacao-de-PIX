@@ -18,7 +18,7 @@ class PixTransactionModel(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, server_default=text("CURRENT_TIMESTAMP"))
 
 class PixDecisionModel(Base):
-    __tablename__ = "pix_decisions"
+    __tablename__ = "fraud_analysis"
 
     key = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     transaction_id = Column(String(50), ForeignKey("pix_transactions.id"), unique=True, nullable=False)

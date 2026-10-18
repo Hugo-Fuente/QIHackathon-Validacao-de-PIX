@@ -1,0 +1,132 @@
+{
+  "run": "d04333c6",
+  "url": "http://127.0.0.1:3002/pix/transaction",
+  "started_at": "2026-10-18 06:45:41",
+  "duration_s": 48.0,
+  "overall": {
+    "requests": 132,
+    "elapsed_s": 48.02,
+    "rps": 2.7,
+    "errors": 0,
+    "error_rate_pct": 0.0,
+    "p50_ms": 2516.2,
+    "p90_ms": 4097.7,
+    "p95_ms": 5137.5,
+    "p99_ms": 5166.0,
+    "max_ms": 5167.4,
+    "mean_ms": 2530.7,
+    "status_codes": {
+      "201": 132
+    }
+  },
+  "checks": [
+    {
+      "phase": "smoke",
+      "name": "POST válido devolve 201 com key e status",
+      "passed": true,
+      "detail": "http 201"
+    },
+    {
+      "phase": "smoke",
+      "name": "reenvio idêntico devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET de id inexistente devolve 404",
+      "passed": true,
+      "detail": "http 404"
+    },
+    {
+      "phase": "hot",
+      "name": "todas as requisições da rajada retornam 201",
+      "passed": true,
+      "detail": "0 diferentes de 201"
+    },
+    {
+      "phase": "hot",
+      "name": "concorrente == sequencial em todos os pagadores (lock evita ler histórico incompleto)",
+      "passed": true,
+      "detail": "concorrente=[6] sequencial=[6]"
+    },
+    {
+      "phase": "hot",
+      "name": "R2 acionado em 6 dos 10 Pix (do 5º em diante)",
+      "passed": true,
+      "detail": "observado=[6]"
+    }
+  ],
+  "phases": {
+    "hot": {
+      "payers": 10,
+      "events_per_payer": 10,
+      "expected_r2_hits_per_payer": 6,
+      "concurrent_r2_hits": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "sequential_r2_hits": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "non_201": 0,
+      "contention_latency": {
+        "requests": 132,
+        "elapsed_s": 17.48,
+        "rps": 7.6,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 2516.2,
+        "p90_ms": 4097.7,
+        "p95_ms": 5137.5,
+        "p99_ms": 5166.0,
+        "max_ms": 5167.4,
+        "mean_ms": 2530.7,
+        "status_codes": {
+          "201": 132
+        },
+        "concurrency": 20
+      }
+    }
+  },
+  "configuration": {
+    "cpu_logical_available": 8,
+    "api_runtime": "Docker, Uvicorn --workers 2, no --reload, port 3002",
+    "load_generator": "host process on the same machine; shares CPU with Docker",
+    "sqlalchemy_pool_per_worker": {
+      "pool_size": 10,
+      "max_overflow": 30,
+      "max_capacity": 40,
+      "pool_recycle_seconds": 600,
+      "pool_pre_ping": true
+    },
+    "api_pool_capacity_2_workers": 80,
+    "postgres_max_connections": 100,
+    "sla_p95_ms": 2000,
+    "max_error_pct": 1.0,
+    "auth_adaptation": "temporary copy of load_tests.py adds INTERNAL-TOKEN header; original unchanged"
+  }
+}

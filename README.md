@@ -265,6 +265,8 @@ Armazena o evento recebido: `id` (chave primária e idempotência), `payload_has
 
 Requisições recusadas na validação (`400` ou `422`) não viram evento nem análise; todo evento válido fica gravado e consultável pelo `GET`.
 
+Reenvio idêntico (`200`) retorna a análise existente; conflito de `id` (`409`) e payload inválido (`400`/`422`) não criam uma linha de tentativa. O histórico abaixo representa eventos válidos recebidos pela API.
+
 **Novos na v5:** colunas `request_id` e `request_hash` (para a C1, com índice em `request_id`) e índice por `company_id` com `transaction_date` (para R20 acumulado e R30).
 
 **Novos na v6:** nenhuma tabela nem coluna. O perfil sai de consultas agregadas sobre `PIX_TRANSACTION`. Para as estatísticas por contraparte (R1, R4, R5, R33 e a contraparte recorrente, janela de 180 dias), recomenda-se um índice composto por documento do pagador, documento destino e `transaction_date`.
@@ -278,6 +280,39 @@ Uma única análise por evento: `key` (UUID), `transaction_id` (referência úni
 Cada regra acionada: identificador, chave da análise, código da regra (R1–R33 e C1), pontos antes do teto e detalhe dos valores observados e parâmetros usados.
 
 Relacionamentos: cada `PIX_TRANSACTION` recebe uma `FRAUD_ANALYSIS`; uma análise tem zero ou várias entradas em `RULE_HIT`.
+
+### Consultar o histórico de um pagador no banco
+
+A API oferece leitura por `id` em `GET /pix/transaction/{id}`. Para consultar várias transações de um documento sem acessar uma rota por evento, a migration `database/migrations/003_history_view.sql` cria a view somente de leitura `v_historico_pagador` e um índice em `rule_hits.analysis_key`.
+
+```bash
+docker compose exec -T db psql -U bootcamp -d epp_conta_compartilhada \
+  -f - < database/migrations/003_history_view.sql
+```
+
+Conte rejeições nos últimos 60 minutos:
+
+```sql
+SELECT count(*)
+FROM v_historico_pagador
+WHERE source_document = '<doc>'
+  AND status = 'rejected'
+  AND transaction_date BETWEEN now() - interval '60 minutes' AND now();
+```
+
+Veja o extrato mais recente, incluindo a data de processamento (`created_at`), a decisão e as regras que a explicam:
+
+```sql
+SELECT id, transaction_date, created_at, amount, destination_document,
+       status, risk_score, dinheiro_liberado, regras
+FROM v_historico_pagador
+WHERE source_document = '<doc>'
+  AND transaction_date BETWEEN now() - interval '90 days' AND now()
+ORDER BY transaction_date DESC
+LIMIT 100;
+```
+
+`dinheiro_liberado` só é verdadeiro para `approved`; `two_factor_required` ainda aguarda confirmação. Uma rejeição C1 pode ter `risk_score = 0`: C1 força `rejected` sem somar pontos, e a coluna `regras` mostra o motivo. A view cobre transações válidas; tentativas com `409` ou `400`/`422` não são registradas.
 
 ## Idempotência e concorrência
 

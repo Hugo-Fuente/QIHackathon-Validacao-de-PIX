@@ -1,0 +1,776 @@
+{
+  "run": "dce63cdc",
+  "url": "http://localhost:8000/pix/transaction",
+  "started_at": "2026-10-18 08:57:22",
+  "duration_s": 223.3,
+  "overall": {
+    "requests": 26693,
+    "elapsed_s": 223.26,
+    "rps": 119.6,
+    "errors": 0,
+    "error_rate_pct": 0.0,
+    "p50_ms": 73.8,
+    "p90_ms": 543.6,
+    "p95_ms": 926.4,
+    "p99_ms": 1494.9,
+    "max_ms": 4416.9,
+    "mean_ms": 220.3,
+    "status_codes": {
+      "200": 11060,
+      "201": 12696,
+      "400": 200,
+      "404": 1199,
+      "422": 1538
+    }
+  },
+  "checks": [
+    {
+      "phase": "smoke",
+      "name": "POST válido devolve 201 com key e status",
+      "passed": true,
+      "detail": "http 201"
+    },
+    {
+      "phase": "smoke",
+      "name": "reenvio idêntico devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET devolve 200 com a mesma key",
+      "passed": true,
+      "detail": "http 200"
+    },
+    {
+      "phase": "smoke",
+      "name": "GET de id inexistente devolve 404",
+      "passed": true,
+      "detail": "http 404"
+    },
+    {
+      "phase": "ramp",
+      "name": "existe ao menos um degrau dentro do SLA (p95 ≤ 2000.0 ms, erros ≤ 1.0%)",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "phase": "idempotency",
+      "name": "50 rajadas: exatamente 1x 201, o resto 200, uma única key",
+      "passed": true,
+      "detail": "0 violações"
+    },
+    {
+      "phase": "conflict",
+      "name": "1 vencedor; mesmo payload = 200; payload diferente = 409; uma key",
+      "passed": true,
+      "detail": "0 violações"
+    },
+    {
+      "phase": "conflict",
+      "name": "nenhum 5xx nem erro de rede (violação de UNIQUE não pode vazar)",
+      "passed": true,
+      "detail": "0 erros"
+    },
+    {
+      "phase": "hot",
+      "name": "todas as requisições da rajada retornam 201",
+      "passed": true,
+      "detail": "0 diferentes de 201"
+    },
+    {
+      "phase": "hot",
+      "name": "concorrente == sequencial em todos os pagadores (lock evita ler histórico incompleto)",
+      "passed": true,
+      "detail": "concorrente=[6] sequencial=[6]"
+    },
+    {
+      "phase": "hot",
+      "name": "R2 acionado em 6 dos 10 Pix (do 5º em diante)",
+      "passed": true,
+      "detail": "observado=[6]"
+    },
+    {
+      "phase": "hot",
+      "name": "contenção de um só pagador dentro do SLA (p95 ≤ 2000.0 ms)",
+      "passed": true,
+      "detail": "p95=1355.1ms, 18.4 req/s"
+    },
+    {
+      "phase": "destination",
+      "name": "conta destino serializa o perfil: R9 dispara no quinto pagador",
+      "passed": true,
+      "detail": "concorrente=1, sequencial=1"
+    },
+    {
+      "phase": "destination",
+      "name": "todos os Pix da rajada são gravados",
+      "passed": true,
+      "detail": "{'conc': 0, 'seq': 0}"
+    },
+    {
+      "phase": "execution",
+      "name": "uma execução passa e as outras quatro acionam C1",
+      "passed": true,
+      "detail": "sem C1=1, com C1=4, HTTP=[201, 201, 201, 201, 201]"
+    },
+    {
+      "phase": "execution",
+      "name": "todas as execuções duplicadas recebem resposta normal",
+      "passed": true,
+      "detail": "HTTP=[201, 201, 201, 201, 201]"
+    },
+    {
+      "phase": "validation",
+      "name": "amount ausente → 422",
+      "passed": true,
+      "detail": "200 req, p95=13.4ms, códigos={422: 200}"
+    },
+    {
+      "phase": "validation",
+      "name": "amount negativo → 422",
+      "passed": true,
+      "detail": "200 req, p95=11.3ms, códigos={422: 200}"
+    },
+    {
+      "phase": "validation",
+      "name": "amount decimal → 422",
+      "passed": true,
+      "detail": "200 req, p95=19.7ms, códigos={422: 200}"
+    },
+    {
+      "phase": "validation",
+      "name": "data sem fuso → 422",
+      "passed": true,
+      "detail": "200 req, p95=12.2ms, códigos={422: 200}"
+    },
+    {
+      "phase": "validation",
+      "name": "documento com 10 dígitos → 422",
+      "passed": true,
+      "detail": "200 req, p95=10.3ms, códigos={422: 200}"
+    },
+    {
+      "phase": "validation",
+      "name": "context com event inválido → 422",
+      "passed": true,
+      "detail": "200 req, p95=11.6ms, códigos={422: 200}"
+    },
+    {
+      "phase": "validation",
+      "name": "vote sem request_id → 422",
+      "passed": true,
+      "detail": "200 req, p95=13.0ms, códigos={422: 200}"
+    },
+    {
+      "phase": "validation",
+      "name": "JSON malformado → 400",
+      "passed": true,
+      "detail": "200 req, p95=53.7ms, códigos={400: 200}"
+    },
+    {
+      "phase": "get",
+      "name": "todo GET devolve a mesma key do POST (200) ou 404 se inexistente",
+      "passed": true,
+      "detail": "11989 req, erros=0, p95=115.3ms"
+    },
+    {
+      "phase": "mixed",
+      "name": "mistura sem erros (201/200/422 nos casos esperados, C1 não dispara no fluxo legítimo)",
+      "passed": true,
+      "detail": "1516 req, erros=0, 99.1 req/s, p95=623.3ms"
+    },
+    {
+      "phase": "mixed",
+      "name": "mistura dentro do SLA (p95 ≤ 2000.0 ms)",
+      "passed": true,
+      "detail": "p95=623.3ms, 99.1 req/s"
+    },
+    {
+      "phase": "soak",
+      "name": "sem erros e p95 da última janela ≤ 2× o da primeira (sem degradação)",
+      "passed": true,
+      "detail": "erros=0, p95 633.3→669.1 ms"
+    }
+  ],
+  "phases": {
+    "ramp": {
+      "stages": [
+        {
+          "requests": 347,
+          "elapsed_s": 15.03,
+          "rps": 23.1,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 39.4,
+          "p90_ms": 51.3,
+          "p95_ms": 61.4,
+          "p99_ms": 108.4,
+          "max_ms": 184.7,
+          "mean_ms": 43.1,
+          "status_codes": {
+            "201": 347
+          },
+          "concurrency": 1,
+          "within_sla": true
+        },
+        {
+          "requests": 1186,
+          "elapsed_s": 15.07,
+          "rps": 78.7,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 57.7,
+          "p90_ms": 81.3,
+          "p95_ms": 97.2,
+          "p99_ms": 151.8,
+          "max_ms": 247.0,
+          "mean_ms": 63.3,
+          "status_codes": {
+            "201": 1186
+          },
+          "concurrency": 5,
+          "within_sla": true
+        },
+        {
+          "requests": 1291,
+          "elapsed_s": 15.07,
+          "rps": 85.7,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 105.6,
+          "p90_ms": 170.4,
+          "p95_ms": 194.6,
+          "p99_ms": 287.9,
+          "max_ms": 457.6,
+          "mean_ms": 116.3,
+          "status_codes": {
+            "201": 1291
+          },
+          "concurrency": 10,
+          "within_sla": true
+        },
+        {
+          "requests": 1344,
+          "elapsed_s": 15.19,
+          "rps": 88.5,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 258.1,
+          "p90_ms": 427.1,
+          "p95_ms": 492.7,
+          "p99_ms": 604.2,
+          "max_ms": 827.3,
+          "mean_ms": 280.7,
+          "status_codes": {
+            "201": 1344
+          },
+          "concurrency": 25,
+          "within_sla": true
+        },
+        {
+          "requests": 1182,
+          "elapsed_s": 15.34,
+          "rps": 77.1,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 583.7,
+          "p90_ms": 1000.3,
+          "p95_ms": 1192.6,
+          "p99_ms": 1548.5,
+          "max_ms": 2214.7,
+          "mean_ms": 643.0,
+          "status_codes": {
+            "201": 1182
+          },
+          "concurrency": 50,
+          "within_sla": true
+        },
+        {
+          "requests": 1282,
+          "elapsed_s": 15.81,
+          "rps": 81.1,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 1081.6,
+          "p90_ms": 1816.0,
+          "p95_ms": 2195.9,
+          "p99_ms": 2875.1,
+          "max_ms": 4416.9,
+          "mean_ms": 1204.5,
+          "status_codes": {
+            "201": 1282
+          },
+          "concurrency": 100,
+          "within_sla": false
+        }
+      ],
+      "sla_ms": 2000.0,
+      "max_error_pct": 1.0,
+      "capacity_within_sla": {
+        "requests": 1344,
+        "elapsed_s": 15.19,
+        "rps": 88.5,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 258.1,
+        "p90_ms": 427.1,
+        "p95_ms": 492.7,
+        "p99_ms": 604.2,
+        "max_ms": 827.3,
+        "mean_ms": 280.7,
+        "status_codes": {
+          "201": 1344
+        },
+        "concurrency": 25,
+        "within_sla": true
+      },
+      "peak_throughput": {
+        "requests": 1344,
+        "elapsed_s": 15.19,
+        "rps": 88.5,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 258.1,
+        "p90_ms": 427.1,
+        "p95_ms": 492.7,
+        "p99_ms": 604.2,
+        "max_ms": 827.3,
+        "mean_ms": 280.7,
+        "status_codes": {
+          "201": 1344
+        },
+        "concurrency": 25,
+        "within_sla": true
+      }
+    },
+    "idempotency": {
+      "storms": 50,
+      "concurrency": 20,
+      "requests": 1000,
+      "violations": 0,
+      "aborted": null,
+      "extra_keys": 0,
+      "p50_ms": 83.4,
+      "p95_ms": 207.8,
+      "max_ms": 296.3,
+      "examples": []
+    },
+    "conflict": {
+      "storms": 50,
+      "violations": 0,
+      "server_errors": 0,
+      "examples": []
+    },
+    "hot": {
+      "payers": 10,
+      "events_per_payer": 10,
+      "expected_r2_hits_per_payer": 6,
+      "concurrent_r2_hits": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "sequential_r2_hits": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "non_201": 0,
+      "failure_examples": [],
+      "contention_latency": {
+        "requests": 300,
+        "elapsed_s": 16.34,
+        "rps": 18.4,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 1056.2,
+        "p90_ms": 1223.5,
+        "p95_ms": 1355.1,
+        "p99_ms": 1415.1,
+        "max_ms": 1431.2,
+        "mean_ms": 1047.4,
+        "status_codes": {
+          "201": 300
+        },
+        "concurrency": 20
+      }
+    },
+    "destination": {
+      "r9_hits": {
+        "conc": 1,
+        "seq": 1
+      },
+      "non_201": {
+        "conc": 0,
+        "seq": 0
+      },
+      "expected_r9_hits": 1
+    },
+    "execution": {
+      "request_status": 201,
+      "execution_statuses": [
+        201,
+        201,
+        201,
+        201,
+        201
+      ],
+      "first_execution_without_c1": 1,
+      "duplicate_execution_c1": 4,
+      "violations": 0
+    },
+    "validation": [
+      {
+        "requests": 200,
+        "elapsed_s": 0.17,
+        "rps": 1210.0,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 6.7,
+        "p90_ms": 11.5,
+        "p95_ms": 13.4,
+        "p99_ms": 47.9,
+        "max_ms": 48.1,
+        "mean_ms": 8.0,
+        "status_codes": {
+          "422": 200
+        },
+        "case": "amount ausente → 422",
+        "expected_http": 422
+      },
+      {
+        "requests": 200,
+        "elapsed_s": 0.16,
+        "rps": 1250.7,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 6.7,
+        "p90_ms": 9.7,
+        "p95_ms": 11.3,
+        "p99_ms": 44.1,
+        "max_ms": 46.4,
+        "mean_ms": 7.7,
+        "status_codes": {
+          "422": 200
+        },
+        "case": "amount negativo → 422",
+        "expected_http": 422
+      },
+      {
+        "requests": 200,
+        "elapsed_s": 0.25,
+        "rps": 812.6,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 11.2,
+        "p90_ms": 18.5,
+        "p95_ms": 19.7,
+        "p99_ms": 22.7,
+        "max_ms": 30.5,
+        "mean_ms": 12.0,
+        "status_codes": {
+          "422": 200
+        },
+        "case": "amount decimal → 422",
+        "expected_http": 422
+      },
+      {
+        "requests": 200,
+        "elapsed_s": 0.15,
+        "rps": 1330.7,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 6.9,
+        "p90_ms": 9.9,
+        "p95_ms": 12.2,
+        "p99_ms": 32.6,
+        "max_ms": 32.9,
+        "mean_ms": 7.4,
+        "status_codes": {
+          "422": 200
+        },
+        "case": "data sem fuso → 422",
+        "expected_http": 422
+      },
+      {
+        "requests": 200,
+        "elapsed_s": 0.14,
+        "rps": 1439.4,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 5.9,
+        "p90_ms": 8.9,
+        "p95_ms": 10.3,
+        "p99_ms": 33.7,
+        "max_ms": 36.6,
+        "mean_ms": 6.8,
+        "status_codes": {
+          "422": 200
+        },
+        "case": "documento com 10 dígitos → 422",
+        "expected_http": 422
+      },
+      {
+        "requests": 200,
+        "elapsed_s": 0.16,
+        "rps": 1233.5,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 6.8,
+        "p90_ms": 10.4,
+        "p95_ms": 11.6,
+        "p99_ms": 27.1,
+        "max_ms": 27.4,
+        "mean_ms": 7.5,
+        "status_codes": {
+          "422": 200
+        },
+        "case": "context com event inválido → 422",
+        "expected_http": 422
+      },
+      {
+        "requests": 200,
+        "elapsed_s": 0.17,
+        "rps": 1162.8,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 7.1,
+        "p90_ms": 11.2,
+        "p95_ms": 13.0,
+        "p99_ms": 42.3,
+        "max_ms": 43.3,
+        "mean_ms": 8.2,
+        "status_codes": {
+          "422": 200
+        },
+        "case": "vote sem request_id → 422",
+        "expected_http": 422
+      },
+      {
+        "requests": 200,
+        "elapsed_s": 0.27,
+        "rps": 734.1,
+        "errors": 0,
+        "error_rate_pct": 0.0,
+        "p50_ms": 7.7,
+        "p90_ms": 18.5,
+        "p95_ms": 53.7,
+        "p99_ms": 113.1,
+        "max_ms": 113.1,
+        "mean_ms": 13.4,
+        "status_codes": {
+          "400": 200
+        },
+        "case": "JSON malformado → 400",
+        "expected_http": 400
+      }
+    ],
+    "get": {
+      "requests": 11989,
+      "elapsed_s": 15.04,
+      "rps": 797.3,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "p50_ms": 54.9,
+      "p90_ms": 93.7,
+      "p95_ms": 115.3,
+      "p99_ms": 184.9,
+      "max_ms": 286.3,
+      "mean_ms": 62.6,
+      "status_codes": {
+        "200": 10790,
+        "404": 1199
+      },
+      "concurrency": 50,
+      "pool": 6632
+    },
+    "mixed": {
+      "requests": 1516,
+      "elapsed_s": 15.3,
+      "rps": 99.1,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "p50_ms": 240.5,
+      "p90_ms": 503.5,
+      "p95_ms": 623.3,
+      "p99_ms": 900.0,
+      "max_ms": 1138.8,
+      "mean_ms": 249.2,
+      "status_codes": {
+        "200": 270,
+        "201": 1108,
+        "422": 138
+      },
+      "concurrency": 25,
+      "per_operation": {
+        "GET": {
+          "requests": 135,
+          "elapsed_s": 15.3,
+          "rps": 8.8,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 20.9,
+          "p90_ms": 49.5,
+          "p95_ms": 61.5,
+          "p99_ms": 94.8,
+          "max_ms": 129.1,
+          "mean_ms": 25.6,
+          "status_codes": {
+            "200": 135
+          }
+        },
+        "POST epp execution": {
+          "requests": 138,
+          "elapsed_s": 15.3,
+          "rps": 9.0,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 112.9,
+          "p90_ms": 206.6,
+          "p95_ms": 256.8,
+          "p99_ms": 310.1,
+          "max_ms": 360.1,
+          "mean_ms": 123.8,
+          "status_codes": {
+            "201": 138
+          }
+        },
+        "POST epp request": {
+          "requests": 138,
+          "elapsed_s": 15.3,
+          "rps": 9.0,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 623.3,
+          "p90_ms": 908.2,
+          "p95_ms": 1028.5,
+          "p99_ms": 1124.6,
+          "max_ms": 1138.8,
+          "mean_ms": 646.9,
+          "status_codes": {
+            "201": 138
+          }
+        },
+        "POST inválido": {
+          "requests": 138,
+          "elapsed_s": 15.3,
+          "rps": 9.0,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 13.4,
+          "p90_ms": 45.7,
+          "p95_ms": 68.5,
+          "p99_ms": 129.4,
+          "max_ms": 265.0,
+          "mean_ms": 22.1,
+          "status_codes": {
+            "422": 138
+          }
+        },
+        "POST reenvio": {
+          "requests": 135,
+          "elapsed_s": 15.3,
+          "rps": 8.8,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 27.8,
+          "p90_ms": 71.1,
+          "p95_ms": 81.3,
+          "p99_ms": 103.1,
+          "max_ms": 338.6,
+          "mean_ms": 37.0,
+          "status_codes": {
+            "200": 135
+          }
+        },
+        "POST retail": {
+          "requests": 832,
+          "elapsed_s": 15.3,
+          "rps": 54.4,
+          "errors": 0,
+          "error_rate_pct": 0.0,
+          "p50_ms": 295.8,
+          "p90_ms": 459.2,
+          "p95_ms": 514.6,
+          "p99_ms": 597.4,
+          "max_ms": 757.8,
+          "mean_ms": 312.4,
+          "status_codes": {
+            "201": 832
+          }
+        }
+      }
+    },
+    "soak": {
+      "requests": 4656,
+      "elapsed_s": 60.27,
+      "rps": 77.3,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "p50_ms": 297.8,
+      "p90_ms": 477.6,
+      "p95_ms": 573.3,
+      "p99_ms": 803.1,
+      "max_ms": 1193.8,
+      "mean_ms": 322.7,
+      "status_codes": {
+        "201": 4656
+      },
+      "concurrency": 25,
+      "windows": [
+        {
+          "window_start_s": 0,
+          "rps": 77.4,
+          "p95_ms": 633.3,
+          "errors": 0
+        },
+        {
+          "window_start_s": 10,
+          "rps": 76.4,
+          "p95_ms": 580.1,
+          "errors": 0
+        },
+        {
+          "window_start_s": 20,
+          "rps": 88.7,
+          "p95_ms": 458.0,
+          "errors": 0
+        },
+        {
+          "window_start_s": 30,
+          "rps": 85.5,
+          "p95_ms": 469.5,
+          "errors": 0
+        },
+        {
+          "window_start_s": 40,
+          "rps": 71.5,
+          "p95_ms": 596.2,
+          "errors": 0
+        },
+        {
+          "window_start_s": 50,
+          "rps": 66.1,
+          "p95_ms": 669.1,
+          "errors": 0
+        }
+      ],
+      "p95_drift_ratio": 1.06
+    }
+  }
+}

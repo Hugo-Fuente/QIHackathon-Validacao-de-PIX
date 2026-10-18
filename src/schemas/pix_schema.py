@@ -26,7 +26,7 @@ class DestinationAccountSchema(BaseModel):
     participant: str
     branch: str
     account_number: str
-    opening_date: datetime
+    opening_date: Optional[datetime] = None
     owner: OwnerSchema
 
 class GeolocationSchema(BaseModel):

@@ -68,8 +68,50 @@ CREATE TABLE pix_transactions (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_source_date
+    ON pix_transactions (source_document, transaction_date);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_destination_date
+    ON pix_transactions (destination_document, transaction_date);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_date_source
+    ON pix_transactions (transaction_date, source_document);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_device_date
+    ON pix_transactions ((payload #>> '{source,device_id}'), transaction_date);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_destination_account_date
+    ON pix_transactions (
+        (payload #>> '{destination_account,participant}'),
+        (payload #>> '{destination_account,branch}'),
+        (payload #>> '{destination_account,account_number}'),
+        transaction_date
+    );
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_request_date
+    ON pix_transactions ((payload #>> '{context,request_id}'), transaction_date)
+    WHERE payload #>> '{context,event}' = 'execution';
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_company_date
+    ON pix_transactions ((payload #>> '{context,company_id}'), transaction_date);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_author_date
+    ON pix_transactions ((payload #>> '{context,author_id}'), transaction_date);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_source_destination_date
+    ON pix_transactions (source_document, destination_document, transaction_date);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_source_destination_account_date
+    ON pix_transactions (
+        source_document,
+        (payload #>> '{destination_account,participant}'),
+        (payload #>> '{destination_account,branch}'),
+        (payload #>> '{destination_account,account_number}'),
+        transaction_date
+    );
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_responsibility_date
+    ON pix_transactions ((payload #>> '{context,responsibility_id}'), transaction_date);
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_outflow_date_source
+    ON pix_transactions (transaction_date, source_document)
+    WHERE (payload #>> '{context,event}' IS NULL
+           OR payload #>> '{context,event}' = 'request');
+CREATE INDEX IF NOT EXISTS ix_pix_transactions_partner_documents_gin
+    ON pix_transactions USING GIN ((payload #> '{context,partner_documents}') jsonb_path_ops)
+    WHERE payload #>> '{context,event}' = 'request';
+
 -- 4. Histórico da Decisão do Motor
-CREATE TABLE pix_decisions (
+CREATE TABLE fraud_analysis (
     key UUID PRIMARY KEY,
     transaction_id VARCHAR(50) REFERENCES pix_transactions(id) UNIQUE NOT NULL,
     status VARCHAR(30) NOT NULL, -- 'approved', 'rejected', 'two_factor_required'
@@ -81,8 +123,33 @@ CREATE TABLE pix_decisions (
 -- 5. Regras Acionadas por Decisão (Para auditoria: "Quais regras bloquearam este Pix?")
 CREATE TABLE rule_hits (
     id BIGSERIAL PRIMARY KEY,
-    analysis_key UUID REFERENCES pix_decisions(key),
+    analysis_key UUID REFERENCES fraud_analysis(key),
     rule_code VARCHAR(10) REFERENCES fraud_rules(code),
     points SMALLINT NOT NULL,
     detail TEXT -- Ex: "A Padaria só abre às 06:00, mas o Pix ocorreu às 03:00"
 );
+
+CREATE INDEX IF NOT EXISTS ix_rule_hits_analysis_key
+    ON rule_hits (analysis_key);
+
+CREATE OR REPLACE VIEW v_historico_pagador AS
+SELECT
+    t.source_document,
+    t.id,
+    t.transaction_date,
+    t.created_at,
+    t.amount,
+    t.destination_document,
+    a.status,
+    a.risk_score,
+    (a.status = 'approved') AS dinheiro_liberado,
+    COALESCE(
+        (
+            SELECT array_agg(h.rule_code ORDER BY h.rule_code)
+            FROM rule_hits AS h
+            WHERE h.analysis_key = a.key
+        ),
+        ARRAY[]::varchar[]
+    ) AS regras
+FROM pix_transactions AS t
+JOIN fraud_analysis AS a ON a.transaction_id = t.id;

@@ -199,12 +199,29 @@ def run_scenario(
             responses.append((status, body))
             expected = item["expect"]
             if expected:
-                failures.extend(
-                    f"{item['name']}: {message}"
-                    for message in check_expectation(expected, status, body, responses)
-                )
+                messages = check_expectation(expected, status, body, responses)
+                if messages:
+                    diagnostic = {
+                        "id": item["request"].get("id"),
+                        "transaction_date": item["request"].get("transaction_date"),
+                        "http": status,
+                        "response": body,
+                    }
+                    failures.extend(
+                        f"{item['name']}: {message}; diagnóstico={json.dumps(diagnostic, ensure_ascii=False)}"
+                        for message in messages
+                    )
             elif status >= 400:
-                failures.append(f"{item['name']}: HTTP {status}, expected success")
+                diagnostic = {
+                    "id": item["request"].get("id"),
+                    "transaction_date": item["request"].get("transaction_date"),
+                    "http": status,
+                    "response": body,
+                }
+                failures.append(
+                    f"{item['name']}: HTTP {status}, expected success; "
+                    f"diagnóstico={json.dumps(diagnostic, ensure_ascii=False)}"
+                )
     return failures
 
 
